@@ -1,12 +1,15 @@
 
 all: lctrie_bgp_test
 
-lctrie_bgp_test: lctrie_bgp_test.o
+lctrie_bgp_test: lctrie_bgp_test.o lctrie_bgp.o
 
 clean:
 	rm -rf .d
 	rm -f *.o
 	rm -f lctrie_bgp_test
+
+CFLAGS = -g -ggdb -std=gnu99
+LDFLAGS = -g -ggdb
 
 # autodep stuff
 
