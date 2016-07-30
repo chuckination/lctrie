@@ -2,6 +2,7 @@
 #define __LC_TRIE_BGP_H__
 // begin #ifndef guard
 
+#include <stdlib.h>
 #include <stdint.h>
 
 typedef struct lct_bgp_prefix {
@@ -17,8 +18,21 @@ typedef struct lct_bgp_asn {
 	char *desc;
 } lct_bgp_asn_t;
 
-lct_bgp_prefix_t* read_prefix_table();
-lct_bgp_asn_t* read_asn_table();
+// read the subnet to ASN file
+// return number of entries read
+// return negative on failure
+extern int
+read_prefix_table(char *filename,
+                  lct_bgp_prefix_t prefix[],
+                  size_t prefix_size);
+
+// read the ASN to description file
+// return number of entries read
+// return negative on failure
+extern int
+read_asn_table(char *filename,
+               lct_bgp_asn_t prefix[],
+               size_t prefix_size);
 
 // end #ifndef guard
 #endif

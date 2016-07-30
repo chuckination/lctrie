@@ -3,6 +3,11 @@ all: lctrie_bgp_test
 
 lctrie_bgp_test: lctrie_bgp_test.o
 
+clean:
+	rm -rf .d
+	rm -f *.o
+	rm -f lctrie_bgp_test
+
 # autodep stuff
 
 DEPDIR := .d
