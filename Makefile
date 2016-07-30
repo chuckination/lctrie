@@ -8,8 +8,9 @@ clean:
 	rm -f *.o
 	rm -f lctrie_bgp_test
 
-CFLAGS = -g -ggdb -std=gnu99
+CFLAGS = -g -ggdb -std=gnu99 -Wall
 LDFLAGS = -g -ggdb
+LDLIBS = -lpcre
 
 # autodep stuff
 

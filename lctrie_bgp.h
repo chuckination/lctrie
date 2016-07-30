@@ -26,6 +26,7 @@ read_prefix_table(char *filename,
                   lct_bgp_prefix_t prefix[],
                   size_t prefix_size);
 
+// TODO fix this for glibc's qsort
 // three-way subnet comparison for qsort
 extern int prefix_cmp(lct_bgp_prefix_t **i, lct_bgp_prefix_t **j);
 
