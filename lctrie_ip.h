@@ -60,8 +60,7 @@ typedef struct lct_subnet {
 } lct_subnet_t;
 
 // fill in user array with reserved IP subnets
-// RFC1918 for private IP reservations
-// RFC3927 for link local IP reservations
+// according to RFC 5735
 extern int
 init_reserved_subnets(lct_subnet_t prefix[],
 											size_t prefix_size);
