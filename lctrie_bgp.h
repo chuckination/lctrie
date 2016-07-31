@@ -8,8 +8,8 @@
 #include "lctrie_ip.h"
 
 typedef struct lct_bgp_asn {
-	uint32_t num;
-	char *desc;
+  uint32_t num;
+  char *desc;
 } lct_bgp_asn_t;
 
 // read the subnet to ASN file

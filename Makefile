@@ -1,7 +1,7 @@
 
 all: lctrie_bgp_test
 
-lctrie_bgp_test: lctrie_bgp_test.o lctrie_bgp.o lctrie_ip.o
+lctrie_bgp_test: lctrie_bgp_test.o lctrie.o lctrie_bgp.o lctrie_ip.o
 
 clean:
 	rm -rf .d
