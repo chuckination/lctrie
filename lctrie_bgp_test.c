@@ -11,7 +11,7 @@
 #define BGP_MAX_ENTRIES 4000000
 
 int main(int argc, char *argv[]) {
-	int num;
+	int num = 0;
 	lct_subnet_t *prefixes, *p;
 
   if (argc != 3) {
@@ -25,12 +25,14 @@ int main(int argc, char *argv[]) {
 	}
   memset(p, 0, BGP_MAX_ENTRIES * sizeof(lct_subnet_t));
 
+#if 1
 	// read in the ASN prefixes
 	printf("Reading prefixes from %s...\n", argv[1]);
 	if (0 > (num = read_prefix_table(argv[1], p, BGP_MAX_ENTRIES))) {
 		fprintf(stderr, "could not read prefix file \"%s\"\n", argv[1]);
 		return num;
 	}
+#endif
 	
 	// fill up the rest of the array with reserved IP subnets
 	num += init_reserved_subnets(&(p[num]), BGP_MAX_ENTRIES - num);	
@@ -47,7 +49,7 @@ int main(int argc, char *argv[]) {
 	// sort the resulting array
 	qsort(prefixes, num, sizeof(lct_subnet_t), subnet_cmp);
 
-#if 0
+#if 1
   char inet_p[INET_ADDRSTRLEN];
 	for (int i = 0; i < num; i++) {
 		if (!inet_ntop(AF_INET, &(p[i].prefix), inet_p, sizeof(inet_p))) {
@@ -66,6 +68,22 @@ int main(int argc, char *argv[]) {
 
 			case IP_SUBNET_LINKLOCAL:
 				printf("Link local subnet for %s/%d\n", inet_p, p[i].len);
+				break;
+
+			case IP_SUBNET_MULTICAST:
+				printf("Multicast subnet for %s/%d\n", inet_p, p[i].len);
+				break;
+
+			case IP_SUBNET_BROADCAST:
+				printf("Broadcast subnet for %s/%d\n", inet_p, p[i].len);
+				break;
+
+			case IP_SUBNET_LOOPBACK:
+				printf("Loopback subnet for %s/%d\n", inet_p, p[i].len);
+				break;
+
+			case IP_SUBNET_RESERVED:
+				printf("Reserved subnet for %s/%d, %s\n", inet_p, p[i].len, p[i].info.rsv.desc);
 				break;
 
 			default:
