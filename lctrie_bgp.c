@@ -12,7 +12,7 @@
 
 int
 read_prefix_table(char *filename,
-                  lct_bgp_prefix_t prefix[],
+                  lct_subnet_t prefix[],
                   size_t prefix_size) {
 	int num = 0;
 	FILE *infile;
@@ -102,10 +102,11 @@ read_prefix_table(char *filename,
     substr_start = line + ovector[2*4];
     substr_len = ovector[2*4 + 1] - ovector[2*4];
     snprintf(input, sizeof(input), "%.*s", substr_len, substr_start);
-    if (ULONG_MAX == (prefix[num].asn = strtoul(input, NULL, 10))) {
+    if (ULONG_MAX == (prefix[num].info.bgp.asn = strtoul(input, NULL, 10))) {
       fprintf(stderr, "ERROR: %s is not a valid integer: %s\n", input, strerror(errno));
       continue;
     }
+		prefix[num].info.type = IP_SUBNET_BGP;
 
 		num++;
 	}
@@ -115,19 +116,6 @@ read_prefix_table(char *filename,
   fclose(infile);
 
 	return num;
-}
-
-int prefix_cmp(lct_bgp_prefix_t **i, lct_bgp_prefix_t **j) {
-	if ((*i)->prefix < (*j)->prefix)
-		return -1;
-	else if ((*j)->prefix > (*j)->prefix)
-		return 1;
-	else if ((*i)->len < (*j)->len)
-		return -1;
-	else if ((*i)->len > (*j)->len)
-		return 1;
-	else
-		return 0;
 }
 
 int
