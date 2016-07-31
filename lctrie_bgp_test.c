@@ -33,9 +33,9 @@ int main(int argc, char *argv[]) {
 		return num;
 	}
 #endif
-	
+
 	// fill up the rest of the array with reserved IP subnets
-	num += init_reserved_subnets(&(p[num]), BGP_MAX_ENTRIES - num);	
+	num += init_reserved_subnets(&(p[num]), BGP_MAX_ENTRIES - num);
 
   // fill up the input buffer now that we know how many prefixes we really need
 	if (!(prefixes = (lct_subnet_t *)malloc(num * sizeof(lct_subnet_t)))) {
@@ -85,6 +85,11 @@ int main(int argc, char *argv[]) {
 			case IP_SUBNET_RESERVED:
 				printf("Reserved subnet for %s/%d, %s\n", inet_p, p[i].len, p[i].info.rsv.desc);
 				break;
+
+      case IP_SUBNET_BOGON:
+				printf("Bogon subnet for %s/%d\n", inet_p, p[i].len);
+				break;
+
 
 			default:
 				printf("Invalid prefix type for %s/%d\n", inet_p, p[i].len);

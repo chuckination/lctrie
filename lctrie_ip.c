@@ -28,11 +28,37 @@ init_reserved_subnets(lct_subnet_t prefix[],
 		return -1;
 	}
 
-  // RFC 5735
-	// just build the reservations by hand in order
-
-  // Various reserved addresses according to RFC 5735
+  // 15 reserved address ranges according to RFC 5735
   //
+  // Most of these would be considered martians on a typical internet router
+  // but private, multicast, broadcast, 6to4 relay anycast, and link local
+  // may be typical and benign traffic seen behind an edge router, in a core
+  // router, on local subnet switches.
+  //
+  // This list may be duplicated by other bogon filter lists, so checking
+  // for duplicates between the reserved blocks and any 3rd party bogon
+  // list would need to be de-duplicated before adding the ASN subnet
+  // prefixes to a list
+  //
+  // 0.0.0.0/8           "This" Network             RFC 1122, Section 3.2.1.3
+  // 10.0.0.0/8          Private-Use Networks       RFC 1918
+  // 127.0.0.0/8         Loopback                   RFC 1122, Section 3.2.1.3
+  // 169.254.0.0/16      Link Local                 RFC 3927
+  // 172.16.0.0/12       Private-Use Networks       RFC 1918
+  // 192.0.0.0/24        IETF Protocol Assignments  RFC 5736
+  // 192.0.2.0/24        TEST-NET-1                 RFC 5737
+  // 192.88.99.0/24      6to4 Relay Anycast         RFC 3068
+  // 192.168.0.0/16      Private-Use Networks       RFC 1918
+  // 198.18.0.0/15       Network Interconnect
+  //                     Device Benchmark Testing   RFC 2544
+  // 198.51.100.0/24     TEST-NET-2                 RFC 5737
+  // 203.0.113.0/24      TEST-NET-3                 RFC 5737
+  // 224.0.0.0/4         Multicast                  RFC 3171
+  // 240.0.0.0/4         Reserved for Future Use    RFC 1112, Section 4
+  // 255.255.255.255/32  Limited Broadcast          RFC 919, Section 7
+  //                                                RFC 922, Section 7
+
+	// just build the reservations by hand in order
 
   // RFC 1122, Sect. 3.2.1.3 "This" Networks
   //
@@ -89,7 +115,7 @@ init_reserved_subnets(lct_subnet_t prefix[],
 	prefix[7].len = 16;
 
   // RFC 1918 Class C Private Addresses
-  // 
+  //
 	prefix[8].info.type = IP_SUBNET_PRIVATE;
 	prefix[8].info.priv.class = 'c';
 	inet_pton(AF_INET, "192.168.0.0", &(prefix[8].prefix));

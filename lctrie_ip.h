@@ -13,7 +13,8 @@
 #define IP_SUBNET_BROADCAST	5
 #define IP_SUBNET_LOOPBACK	6
 #define IP_SUBNET_RESERVED	7
-#define IP_SUBNET_USER      7
+#define IP_SUBNET_BOGON     8
+#define IP_SUBNET_USER      9
 
 // link local, multicast, loopback, and reserved have no additional
 // information and thereforce only have a type
@@ -24,7 +25,7 @@ typedef struct lct_subnet_bgp_t {
 	uint32_t asn;
 } lct_subnet_bgp_t;
 
-// RFC1918 private IP subnets have a 
+// RFC1918 private IP subnets have a
 typedef struct lct_subnet_private_t {
 	uint32_t type;
 	char class;
@@ -49,7 +50,7 @@ typedef union lct_subnet_info {
 	lct_subnet_private_t priv;
 	lct_subnet_reserved_t rsv;
 	lct_subnet_usr_t usr;
-} lct_subnet_info_t; 
+} lct_subnet_info_t;
 
 // the actual IP subnet structure
 typedef struct lct_subnet {
