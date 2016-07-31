@@ -81,6 +81,7 @@ init_reserved_subnets(lct_subnet_t prefix[],
   //
   prefix[2].info.type = IP_SUBNET_LOOPBACK;
   inet_pton(AF_INET, "127.0.0.0", &(prefix[2].prefix));
+  prefix[2].prefix = ntohl(prefix[2].prefix);
   prefix[2].len = 8;
 
   // RFC 3927 Link Local Addresses
