@@ -20,8 +20,10 @@ int main(int argc, char *argv[]) {
   lct_subnet_t *p;
   int nprefixes = 0, nbases = 0;
 
+#if LCT_IP_DISPLAY_PREFIXES
   char pstr[INET_ADDRSTRLEN];
   uint32_t prefix;
+#endif
 
   if (argc != 3) {
     fprintf(stderr, "usage: %s <BGP ASN Subnets> <BGP ASN Assignments>\n", basename(argv[0]));
