@@ -5,16 +5,18 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define IP_SUBNET_UNUSED    0
-#define IP_SUBNET_BGP        1
-#define IP_SUBNET_PRIVATE    2
-#define IP_SUBNET_LINKLOCAL  3
-#define IP_SUBNET_MULTICAST  4
-#define IP_SUBNET_BROADCAST  5
-#define IP_SUBNET_LOOPBACK  6
-#define IP_SUBNET_RESERVED  7
-#define IP_SUBNET_BOGON     8
-#define IP_SUBNET_USER      9
+#define IP_SUBNET_UNUSED      0
+#define IP_SUBNET_BGP         1
+#define IP_SUBNET_PRIVATE     2
+#define IP_SUBNET_LINKLOCAL   3
+#define IP_SUBNET_MULTICAST   4
+#define IP_SUBNET_BROADCAST   5
+#define IP_SUBNET_LOOPBACK    6
+#define IP_SUBNET_RESERVED    7
+#define IP_SUBNET_BOGON       8
+#define IP_SUBNET_USER        9
+
+#define LCT_IP_DEBUG_PREFIXES 1
 
 // Bit manipulation macros
 //
@@ -60,9 +62,12 @@ typedef union lct_subnet_info {
 } lct_subnet_info_t;
 
 // the actual IP subnet structure
+#define IP_BASE   0
+#define IP_PREFIX 1
 typedef struct lct_subnet {
-  uint32_t addr;
-  uint32_t len;
+  uint8_t type;         // prefix type
+  uint8_t len;          // CIDR address prefix length
+  uint32_t addr;        // subnet address
 
   // pointer to our next highest prefix
   struct lct_subnet *prefix;
@@ -72,12 +77,23 @@ typedef struct lct_subnet {
 
 // fill in user array with reserved IP subnets
 // according to RFC 5735
-extern int
-init_reserved_subnets(lct_subnet_t prefix[],
-                      size_t prefix_size);
+extern int init_reserved_subnets(lct_subnet_t *subnets, size_t size);
 
 // three-way subnet comparison for qsort
 extern int subnet_cmp(const void *di, const void *dj);
+
+// apply netmasks to entries, should be done prior to sorting
+// the array
+extern void subnet_mask(lct_subnet_t *subnets, size_t size);
+
+// de-duplicates subnets, should be run after applying netmasks
+// and sorting the array.
+// returns the number of duplicates removed
+extern size_t subnet_dedup(lct_subnet_t *subnets, size_t size);
+
+// calculates subnets that are prefixes of other subnets
+// and returns the number found
+extern size_t subnet_prefix(lct_subnet_t *subnets, size_t size);
 
 // is subnet s a prefix of the subnet t?
 // requires the two elements to be sorted and in order according

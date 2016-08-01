@@ -13,12 +13,15 @@
 #define BGP_MAX_ENTRIES 4000000
 
 #define LCT_IP_READ_PREFIXES_FILES  1
-#define LCT_IP_DISPLAY_PREFIXES     0
+#define LCT_IP_DISPLAY_PREFIXES     1
 
 int main(int argc, char *argv[]) {
   int num = 0;
   lct_subnet_t *p;
   int nprefixes = 0, nbases = 0;
+
+  char pstr[INET_ADDRSTRLEN];
+  uint32_t prefix;
 
   if (argc != 3) {
     fprintf(stderr, "usage: %s <BGP ASN Subnets> <BGP ASN Assignments>\n", basename(argv[0]));
@@ -44,80 +47,19 @@ int main(int argc, char *argv[]) {
   num += rc;
 #endif
 
-  // sort the resulting array
+  // validate subnet prefixes against their netmasks
+  // and sort the resulting array
+  subnet_mask(p, num);
   qsort(p, num, sizeof(lct_subnet_t), subnet_cmp);
 
-  // remove duplicates
-  char pstr[INET_ADDRSTRLEN];
-  uint32_t prefix;
-#if LCT_IP_DISPLAY_PREFIXES
-  char pstr2[INET_ADDRSTRLEN];
-  uint32_t prefix2;
-#endif
-  printf("Removing duplicates...\n");
-  int ndup = 0;
-  for (int i = 0, j = 1; j < num; ++i, ++j) {
-    // we have a duplicate!
-    if (!subnet_cmp(&p[i], &p[j])) {
-      prefix = htonl(p[i].addr);
-      if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr)))
-        fprintf(stderr, "ERROR: %s\n", strerror(errno));
-
-      printf("Subnet %s/%d type %d duplicates another of type %d\n",
-             pstr, p[i].len, p[i].info.type, p[j].info.type);
-
-      // assume that the later defined subnet is the desired one,
-      // allowing for overrides with the risk of overriding reserved
-      // subnets
-      memmove(&p[i], &p[j], (num - j) * sizeof(lct_subnet_t));
-      --num;
-      ++ndup;
-    }
-  }
-
-  // shrink the buffer down to its actual size and split into prefixes and bases
+  // de-duplicate subnets and shrink the buffer down to its
+  // actual size and split into prefixes and bases
+  num -= subnet_dedup(p, num);
   p = realloc(p, num * sizeof(lct_subnet_t));
-  printf("%d duplicates removed\n", ndup);
 
-  // go through and determine which subnets are prefixes of other subnets
-  for (int i = 0; i < num; ++i) {
-    int j = i + 1;  // fake out a psuedo second iterator
-    if (i < (num - 1) && subnet_isprefix(&p[i], &p[j])) {
-#if LCT_IP_DISPLAY_PREFIXES
-      prefix = htonl(p[i].addr);
-      prefix2 = htonl(p[j].addr);
-      if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr)))
-        fprintf(stderr, "ERROR: %s\n", strerror(errno));
-      if (!inet_ntop(AF_INET, &(prefix2), pstr2, sizeof(pstr2)))
-        fprintf(stderr, "ERROR: %s\n", strerror(errno));
-
-      printf("Subnet %s/%d is a prefix of subnet %s/%d\n",
-             pstr, p[i].len, pstr2, p[j].len);
-#endif
-
-      // mark the prefix of the second node
-      p[j].prefix = &p[i];
-
-      for (int k = j + 1; k < num && subnet_isprefix(&p[i], &p[k]); ++k) {
-#if LCT_IP_DISPLAY_PREFIXES
-        prefix2 = htonl(p[k].addr);
-        if (!inet_ntop(AF_INET, &(prefix2), pstr2, sizeof(pstr2)))
-          fprintf(stderr, "ERROR: %s\n", strerror(errno));
-
-        printf("Subnet %s/%d is also a prefix of subnet %s/%d\n",
-               pstr, p[i].len, pstr2, p[k].len);
-#endif
-        // mark the prefix of the following node
-        // if there's another more specific prefix, it will be overwritten
-        // on additional passes further into the array
-        p[k].prefix = &p[i];
-      }
-
-      ++nprefixes;
-    }
-    else
-      ++nbases;
-  }
+  // count which subnets are prefixes of other subnets
+  nprefixes = subnet_prefix(p, num);
+  nbases = num - nprefixes;
 
 #if LCT_IP_DISPLAY_PREFIXES
   // we're storing twice as many subnets as necessary for easy

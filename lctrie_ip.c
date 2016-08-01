@@ -1,6 +1,8 @@
 #include "lctrie_ip.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 
 #include <arpa/inet.h>
 
@@ -28,10 +30,127 @@ int subnet_isprefix(lct_subnet_t *s, lct_subnet_t *t) {
            EXTRACT(0, s->len, t->addr)));
 }
 
-int
-init_reserved_subnets(lct_subnet_t prefix[],
-                      size_t prefix_size) {
-  if (prefix_size < 15) {
+void subnet_mask(lct_subnet_t *subnets, size_t size) {
+  char pstr[INET_ADDRSTRLEN], pstr2[INET_ADDRSTRLEN];
+  uint32_t prefix, prefix2;
+
+  for (int i = 0; i < size; ++i) {
+    lct_subnet_t *p = &subnets[i];
+
+    uint32_t netmask = 0xffffffff;
+    if (p->len < 32)
+      for (int j = 0; j < (32 - p->len); ++j)
+        netmask &= ~(1 << j);
+
+    uint32_t newaddr = p->addr & netmask;
+    if (newaddr != p->addr) {
+      prefix = htonl(p->addr);
+      prefix2 = htonl(newaddr);
+      if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr)))
+        fprintf(stderr, "ERROR: %s\n", strerror(errno));
+      if (!inet_ntop(AF_INET, &(prefix2), pstr2, sizeof(pstr2)))
+        fprintf(stderr, "ERROR: %s\n", strerror(errno));
+
+      fprintf(stderr, "Subnet %s/%d has not been properly masked, should be %s/%d\n",
+              pstr, p->len, pstr2, p->len);
+
+      p->addr = newaddr;
+    }
+  }
+}
+
+size_t subnet_dedup(lct_subnet_t *subnets, size_t size) {
+  // remove duplicates
+  char pstr[INET_ADDRSTRLEN];
+  uint32_t prefix;
+  size_t ndup = 0;
+
+  for (int i = 0, j = 1; j < size; ++i, ++j) {
+    // we have a duplicate!
+    if (!subnet_cmp(&subnets[i], &subnets[j])) {
+      prefix = htonl(subnets[i].addr);
+      if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr)))
+        fprintf(stderr, "ERROR: %s\n", strerror(errno));
+
+      printf("Subnet %s/%d type %d duplicates another of type %d\n",
+             pstr, subnets[i].len, subnets[i].info.type, subnets[j].info.type);
+
+      // assume that the prior defined subnet is the desired one,
+      // dis-allowing redefinition of that subnet elsewhere,
+      // ex. bogon file, BGP ASN list, user specified subnets
+      //
+      // slide the rest of the array over the second value.  if we're at the
+      // end of the array, just let it drop off.
+      if ((j + 1) < size)
+        memmove(&subnets[j], &subnets[j + 1], (size - (j + 1)) * sizeof(lct_subnet_t));
+      --size;
+      ++ndup;
+    }
+  }
+
+  if (ndup)
+    printf("%lu duplicates removed\n", ndup);
+
+  return ndup;
+}
+
+size_t subnet_prefix(lct_subnet_t *p, size_t size) {
+  size_t npre = 0;
+
+#if LCT_IP_DEBUG_PREFIXES
+  char pstr[INET_ADDRSTRLEN];
+  uint32_t prefix;
+  char pstr2[INET_ADDRSTRLEN];
+  uint32_t prefix2;
+#endif
+
+  // go through and determine which subnets are prefixes of other subnets
+  for (int i = 0; i < size; ++i) {
+    int j = i + 1;  // fake out a psuedo second iterator
+    if (i < (size - 1) && subnet_isprefix(&p[i], &p[j])) {
+#if LCT_IP_DEBUG_PREFIXES
+      prefix = htonl(p[i].addr);
+      prefix2 = htonl(p[j].addr);
+      if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr)))
+        fprintf(stderr, "ERROR: %s\n", strerror(errno));
+      if (!inet_ntop(AF_INET, &(prefix2), pstr2, sizeof(pstr2)))
+        fprintf(stderr, "ERROR: %s\n", strerror(errno));
+
+      printf("Subnet %s/%d is a prefix of subnet %s/%d\n",
+             pstr, p[i].len, pstr2, p[j].len);
+#endif
+
+      // mark the prefix of the second node
+      p[j].prefix = &p[i];
+
+      for (int k = j + 1; k < size && subnet_isprefix(&p[i], &p[k]); ++k) {
+#if LCT_IP_DEBUG_PREFIXES
+        prefix2 = htonl(p[k].addr);
+        if (!inet_ntop(AF_INET, &(prefix2), pstr2, sizeof(pstr2)))
+          fprintf(stderr, "ERROR: %s\n", strerror(errno));
+
+        printf("Subnet %s/%d is also a prefix of subnet %s/%d\n",
+               pstr, p[i].len, pstr2, p[k].len);
+#endif
+        // mark the prefix of the following node
+        // if there's another more specific prefix, it will be overwritten
+        // on additional passes further into the array
+        p[k].prefix = &p[i];
+      }
+
+      p[i].type = IP_PREFIX;
+      ++npre;
+    }
+    else {
+      p[i].type = IP_BASE;
+    }
+  }
+
+  return npre;
+}
+
+int init_reserved_subnets(lct_subnet_t *subnets, size_t size) {
+  if (size < 15) {
     fprintf(stderr, "Need a prefix buffer of size 15 for reserved ranges\n");
     return -1;
   }
@@ -71,119 +190,119 @@ init_reserved_subnets(lct_subnet_t prefix[],
 
   // RFC 1122, Sect. 3.2.1.3 "This" Networks
   //
-  prefix[0].info.type = IP_SUBNET_RESERVED;
-  prefix[0].info.rsv.desc = "RFC 1122, Sect. 3.2.1.3 \"This\" Networks";
-  inet_pton(AF_INET, "0.0.0.0", &(prefix[0].addr));
-  prefix[0].addr = ntohl(prefix[0].addr);
-  prefix[0].len = 8;
+  subnets[0].info.type = IP_SUBNET_RESERVED;
+  subnets[0].info.rsv.desc = "RFC 1122, Sect. 3.2.1.3 \"This\" Networks";
+  inet_pton(AF_INET, "0.0.0.0", &(subnets[0].addr));
+  subnets[0].addr = ntohl(subnets[0].addr);
+  subnets[0].len = 8;
 
   // RFC 1918 Class A Private Addresses
   //
-  prefix[1].info.type = IP_SUBNET_PRIVATE;
-  prefix[1].info.priv.class = 'a';
-  inet_pton(AF_INET, "10.0.0.0", &(prefix[1].addr));
-  prefix[1].addr = ntohl(prefix[1].addr);
-  prefix[1].len = 8;
+  subnets[1].info.type = IP_SUBNET_PRIVATE;
+  subnets[1].info.priv.class = 'a';
+  inet_pton(AF_INET, "10.0.0.0", &(subnets[1].addr));
+  subnets[1].addr = ntohl(subnets[1].addr);
+  subnets[1].len = 8;
 
   // RFC 1122, Sect. 3.2.1.3 Loopback
   //
-  prefix[2].info.type = IP_SUBNET_LOOPBACK;
-  inet_pton(AF_INET, "127.0.0.0", &(prefix[2].addr));
-  prefix[2].addr = ntohl(prefix[2].addr);
-  prefix[2].len = 8;
+  subnets[2].info.type = IP_SUBNET_LOOPBACK;
+  inet_pton(AF_INET, "127.0.0.0", &(subnets[2].addr));
+  subnets[2].addr = ntohl(subnets[2].addr);
+  subnets[2].len = 8;
 
   // RFC 3927 Link Local Addresses
   //
-  prefix[3].info.type = IP_SUBNET_LINKLOCAL;
-  inet_pton(AF_INET, "169.254.0.0", &(prefix[3].addr));
-  prefix[3].addr = ntohl(prefix[3].addr);
-  prefix[3].len = 16;
+  subnets[3].info.type = IP_SUBNET_LINKLOCAL;
+  inet_pton(AF_INET, "169.254.0.0", &(subnets[3].addr));
+  subnets[3].addr = ntohl(subnets[3].addr);
+  subnets[3].len = 16;
 
   // RFC 1918 Class B Private Addresses
   //
-  prefix[4].info.type = IP_SUBNET_PRIVATE;
-  prefix[4].info.priv.class = 'b';
-  inet_pton(AF_INET, "172.16.0.0", &(prefix[4].addr));
-  prefix[4].addr = ntohl(prefix[4].addr);
-  prefix[4].len = 12;
+  subnets[4].info.type = IP_SUBNET_PRIVATE;
+  subnets[4].info.priv.class = 'b';
+  inet_pton(AF_INET, "172.16.0.0", &(subnets[4].addr));
+  subnets[4].addr = ntohl(subnets[4].addr);
+  subnets[4].len = 12;
 
   // RFC 5736 IETF Protocol Assignments
   //
-  prefix[5].info.type = IP_SUBNET_RESERVED;
-  prefix[5].info.rsv.desc = "RFC 5736 IETF Protocol Assignments";
-  inet_pton(AF_INET, "192.0.0.0", &(prefix[5].addr));
-  prefix[5].addr = ntohl(prefix[5].addr);
-  prefix[5].len = 24;
+  subnets[5].info.type = IP_SUBNET_RESERVED;
+  subnets[5].info.rsv.desc = "RFC 5736 IETF Protocol Assignments";
+  inet_pton(AF_INET, "192.0.0.0", &(subnets[5].addr));
+  subnets[5].addr = ntohl(subnets[5].addr);
+  subnets[5].len = 24;
 
   // RFC 5737 TEST-NET-1
   //
-  prefix[6].info.type = IP_SUBNET_RESERVED;
-  prefix[6].info.rsv.desc = "RFC 5737 TEST-NET-1";
-  inet_pton(AF_INET, "192.0.2.0", &(prefix[6].addr));
-  prefix[6].addr = ntohl(prefix[6].addr);
-  prefix[6].len = 24;
+  subnets[6].info.type = IP_SUBNET_RESERVED;
+  subnets[6].info.rsv.desc = "RFC 5737 TEST-NET-1";
+  inet_pton(AF_INET, "192.0.2.0", &(subnets[6].addr));
+  subnets[6].addr = ntohl(subnets[6].addr);
+  subnets[6].len = 24;
 
   // RFC 3068 6to4 Relay Anycast
   //
-  prefix[7].info.type = IP_SUBNET_RESERVED;
-  prefix[7].info.rsv.desc = "RFC 3068 6to4 Relay Anycast";
-  inet_pton(AF_INET, "192.88.99.0", &(prefix[7].addr));
-  prefix[7].addr = ntohl(prefix[7].addr);
-  prefix[7].len = 16;
+  subnets[7].info.type = IP_SUBNET_RESERVED;
+  subnets[7].info.rsv.desc = "RFC 3068 6to4 Relay Anycast";
+  inet_pton(AF_INET, "192.88.99.0", &(subnets[7].addr));
+  subnets[7].addr = ntohl(subnets[7].addr);
+  subnets[7].len = 24;
 
   // RFC 1918 Class C Private Addresses
   //
-  prefix[8].info.type = IP_SUBNET_PRIVATE;
-  prefix[8].info.priv.class = 'c';
-  inet_pton(AF_INET, "192.168.0.0", &(prefix[8].addr));
-  prefix[8].addr = ntohl(prefix[8].addr);
-  prefix[8].len = 16;
+  subnets[8].info.type = IP_SUBNET_PRIVATE;
+  subnets[8].info.priv.class = 'c';
+  inet_pton(AF_INET, "192.168.0.0", &(subnets[8].addr));
+  subnets[8].addr = ntohl(subnets[8].addr);
+  subnets[8].len = 16;
 
   // RFC 2544 Network Interconnect Device Benchmark Testing
   //
-  prefix[9].info.type = IP_SUBNET_RESERVED;
-  prefix[9].info.rsv.desc = "RFC 2544 Network Interconnect Device Benchmark Testing";
-  inet_pton(AF_INET, "198.18.0.0", &(prefix[9].addr));
-  prefix[9].addr = ntohl(prefix[9].addr);
-  prefix[9].len = 15;
+  subnets[9].info.type = IP_SUBNET_RESERVED;
+  subnets[9].info.rsv.desc = "RFC 2544 Network Interconnect Device Benchmark Testing";
+  inet_pton(AF_INET, "198.18.0.0", &(subnets[9].addr));
+  subnets[9].addr = ntohl(subnets[9].addr);
+  subnets[9].len = 15;
 
   // RFC 5737 TEST-NET-2
   //
-  prefix[10].info.type = IP_SUBNET_RESERVED;
-  prefix[10].info.rsv.desc = "RFC 5737 TEST-NET-2";
-  inet_pton(AF_INET, "198.51.100.0", &(prefix[10].addr));
-  prefix[10].addr = ntohl(prefix[10].addr);
-  prefix[10].len = 24;
+  subnets[10].info.type = IP_SUBNET_RESERVED;
+  subnets[10].info.rsv.desc = "RFC 5737 TEST-NET-2";
+  inet_pton(AF_INET, "198.51.100.0", &(subnets[10].addr));
+  subnets[10].addr = ntohl(subnets[10].addr);
+  subnets[10].len = 24;
 
   // RFC 5737 TEST-NET-3
   //
-  prefix[11].info.type = IP_SUBNET_RESERVED;
-  prefix[11].info.rsv.desc = "RFC 5737 TEST-NET-3";
-  inet_pton(AF_INET, "203.0.113.0", &(prefix[11].addr));
-  prefix[11].addr = ntohl(prefix[11].addr);
-  prefix[11].len = 24;
+  subnets[11].info.type = IP_SUBNET_RESERVED;
+  subnets[11].info.rsv.desc = "RFC 5737 TEST-NET-3";
+  inet_pton(AF_INET, "203.0.113.0", &(subnets[11].addr));
+  subnets[11].addr = ntohl(subnets[11].addr);
+  subnets[11].len = 24;
 
   // RFC 3171 Multicast Addresses
   //
-  prefix[12].info.type = IP_SUBNET_MULTICAST;
-  inet_pton(AF_INET, "224.0.0.0", &(prefix[12].addr));
-  prefix[12].addr = ntohl(prefix[12].addr);
-  prefix[12].len = 4;
+  subnets[12].info.type = IP_SUBNET_MULTICAST;
+  inet_pton(AF_INET, "224.0.0.0", &(subnets[12].addr));
+  subnets[12].addr = ntohl(subnets[12].addr);
+  subnets[12].len = 4;
 
   // RFC 1112, Section 4 Reserved for Future Use
   //
-  prefix[13].info.type = IP_SUBNET_RESERVED;
-  prefix[13].info.rsv.desc = "RFC 1112, Section 4 Reserved for Future Use";
-  inet_pton(AF_INET, "240.0.0.0", &(prefix[13].addr));
-  prefix[13].addr = ntohl(prefix[13].addr);
-  prefix[13].len = 4;
+  subnets[13].info.type = IP_SUBNET_RESERVED;
+  subnets[13].info.rsv.desc = "RFC 1112, Section 4 Reserved for Future Use";
+  inet_pton(AF_INET, "240.0.0.0", &(subnets[13].addr));
+  subnets[13].addr = ntohl(subnets[13].addr);
+  subnets[13].len = 4;
 
   // RFC 919/922, Section 7 Limited Broadcast Address
   //
-  prefix[14].info.type = IP_SUBNET_BROADCAST;
-  inet_pton(AF_INET, "255.255.255.255", &(prefix[14].addr));
-  prefix[14].addr = ntohl(prefix[14].addr);
-  prefix[14].len = 32;
+  subnets[14].info.type = IP_SUBNET_BROADCAST;
+  inet_pton(AF_INET, "255.255.255.255", &(subnets[14].addr));
+  subnets[14].addr = ntohl(subnets[14].addr);
+  subnets[14].len = 32;
 
   return 15;
 }
