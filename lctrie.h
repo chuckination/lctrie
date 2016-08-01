@@ -59,14 +59,26 @@ typedef struct lct_node {
 // size - number of nodes in the trie
 // trie - the root of the trie
 typedef struct lct {
-  size_t size;
-  lct_node_t *trie;
+  size_t ncount;  // number of trie nodes, will always be <= 2 * pcount
+  size_t pcount;  // number of trie leaves, will always be smaller than ncount
+  lct_node_t *root;
 } lct_t;
 
-// TODO fix these up
 // lifecycle functions
-lct_t *lct_build();
+//
+// we store pointers to the subnet passed in here, so the subnet array must
+// remain static during the lifetime of the trie.  if the array must be changed,
+// free the trie before doing so and recreate it afterwards.  This doesn't bode
+// well for a large number of dynamic updates, but keeping updates to a minimum
+// and potentially double buffering the data can reduce latency for these
+// events.
+void lct_build(lct_t *trie, lct_subnet_t *bases, lct_subnet_t *prefixes, size_t pcount);
 void lct_free(lct_t *trie);
+
+// search function
+// return the IP subnet corresponding to the element,
+// otherwise return NULL if not found
+lct_subnet_t *lct_find(lct_t *trie, uint32_t key);
 
 // end #ifndef guard
 #endif

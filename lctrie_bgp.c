@@ -80,13 +80,13 @@ read_prefix_table(char *filename,
     substr_start = line + ovector[2*1];
     substr_len = ovector[2*1 + 1] - ovector[2*1];
     snprintf(input, sizeof(input), "%.*s", substr_len, substr_start);
-    if (!inet_pton(AF_INET, input, &(prefix[num].prefix))) {
+    if (!inet_pton(AF_INET, input, &(prefix[num].addr))) {
       fprintf(stderr, "ERROR: %s is not a valid IP address: %s\n", input, strerror(errno));
       continue;
     }
 
     // store it to host byte order so the bit operations on the value work how we expect
-    prefix[num].prefix = ntohl(prefix[num].prefix);
+    prefix[num].addr = ntohl(prefix[num].addr);
 
     // validate and extract prefix length, index 3 in the PCRE matches
     substr_start = line + ovector[2*3];
