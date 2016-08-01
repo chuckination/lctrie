@@ -19,8 +19,6 @@ int main(int argc, char *argv[]) {
   int num = 0;
   lct_subnet_t *p;
   int nprefixes = 0, nbases = 0;
-  lct_subnet_t *prefixes, *bases;
-  lct_subnet_t *temp;
 
   if (argc != 3) {
     fprintf(stderr, "usage: %s <BGP ASN Subnets> <BGP ASN Assignments>\n", basename(argv[0]));
@@ -81,17 +79,6 @@ int main(int argc, char *argv[]) {
   p = realloc(p, num * sizeof(lct_subnet_t));
   printf("%d duplicates removed\n", ndup);
 
-  if (!(prefixes = (lct_subnet_t *)malloc(num * sizeof(lct_subnet_t)))) {
-    fprintf(stderr, "Could not allocate prefixes output buffer\n");
-    free(p);
-    exit(EXIT_FAILURE);
-  }
-  if (!(bases = (lct_subnet_t *)malloc(num * sizeof(lct_subnet_t)))) {
-    fprintf(stderr, "Could not allocate prefixes output buffer\n");
-    free(p);
-    exit(EXIT_FAILURE);
-  }
-
   // go through and determine which subnets are prefixes of other subnets
   for (int i = 0; i < num; ++i) {
     int j = i + 1;  // fake out a psuedo second iterator
@@ -108,10 +95,8 @@ int main(int argc, char *argv[]) {
              pstr, p[i].len, pstr2, p[j].len);
 #endif
 
-      // add it to the prefix array
-      temp = &prefixes[nprefixes++];
-      memcpy(temp, &p[i], sizeof(lct_subnet_t));
-      p[j].prefix = temp;
+      // mark the prefix of the second node
+      p[j].prefix = &p[i];
 
       for (int k = j + 1; k < num && subnet_isprefix(&p[i], &p[k]); ++k) {
 #if LCT_IP_DISPLAY_PREFIXES
@@ -122,19 +107,17 @@ int main(int argc, char *argv[]) {
         printf("Subnet %s/%d is also a prefix of subnet %s/%d\n",
                pstr, p[i].len, pstr2, p[k].len);
 #endif
-        p[k].prefix = temp;
+        // mark the prefix of the following node
+        // if there's another more specific prefix, it will be overwritten
+        // on additional passes further into the array
+        p[k].prefix = &p[i];
       }
-    }
-    else {
-      // add it to the base array
-      temp = &bases[nbases++];
-      memcpy(temp, &p[i], sizeof(lct_subnet_t));
-    }
-  }
 
-  // resize the base and prefix arrays
-  prefixes = realloc(prefixes, nprefixes * sizeof(lct_subnet_t));
-  bases = realloc(bases, nbases * sizeof(lct_subnet_t));
+      ++nprefixes;
+    }
+    else
+      ++nbases;
+  }
 
 #if LCT_IP_DISPLAY_PREFIXES
   // we're storing twice as many subnets as necessary for easy
@@ -188,8 +171,7 @@ int main(int argc, char *argv[]) {
 #endif
   printf("Read %d unique subnets.\n", num);
   printf("%d are prefixes of %d base subnets using %lu kB memory.\n",
-         nprefixes, nbases,
-         2 * ((nprefixes + nbases) * sizeof(lct_subnet_t))/1024);
+         nprefixes, nbases, ((nprefixes + nbases) * sizeof(lct_subnet_t))/1024);
 
   return 0;
 }

@@ -34,21 +34,19 @@
 // the current search position where n is the node's branch value
 // and m is the node's skip value.
 //
-// Leaf nodes are indicated by a branch value of zero, and branch nodes have
-// a non-zero branch value.  This removes the need to store a node type in
-// another field.
+// A leaf node may or may not have children.  If 
 //
 // Since each node is only the size of two pointers on 32 and 64 bit systems
 // this should be a relatively small data structure even for large network
 // sets (such as the union of RFC1918 and the latest ASN ipv4 subnet assignments
 // freshly splurped up from the internet).
 typedef struct lct_node {
-  uint8_t branch;
-  uint8_t skip;
-  union {
-    struct lct_node *node;
-    lct_subnet_t *data;
-  } ptr;
+  uint8_t branch;         // size of the child node array
+  uint8_t skip;           // number of bits to skip of the key before extracting
+                          // the child branch index from the search key
+  uint32_t key;           // copy of this node's key
+  lct_subnet_t *data;     // pointer to leaf data, NULL if not a leaf
+  struct lct_node *node;  // pointer to the first element of the child array
 } lct_node_t;
 
 // The size of the the trie is going to be
