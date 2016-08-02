@@ -107,7 +107,7 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
   // go through and determine which subnets are prefixes of other subnets
   for (int i = 0; i < size; ++i) {
     int j = i + 1;  // fake out a psuedo second iterator
-    if (i < (size - 1) && subnet_isprefix(&p[i], &p[j])) {
+    if ((j < size) && subnet_isprefix(&p[i], &p[j])) {
 #if LCT_IP_DEBUG_PREFIXES
       prefix = htonl(p[i].addr);
       prefix2 = htonl(p[j].addr);
@@ -144,7 +144,37 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
     else {
       p[i].type = IP_BASE;
     }
+    p[i].size = 1 << (32 - p[i].len);
+    p[i].used = 0;
   }
+
+  // walk through the sorted array forwards to add the bases to their prefixes
+  for (int i = 0; i < size; ++i) {
+    // we'll walk the tree up from the bases up through their prefixes
+    // the depends on prefixes with no prefix having their pre pointer
+    // assigned to NUL
+    if (p[i].type == IP_BASE && p[i].prefix) {
+      // add the base's size to it's prefix's count
+      p[i].prefix->used += p[i].size;
+    }
+  }
+
+  // walk backward through the prefixes to add their counts to their parent
+  // prefixes if they have any
+  if (size > 0)
+    for (int i = size - 1; i >= 0; --i) {
+      if (p[i].type == IP_PREFIX) {
+        lct_subnet_t *cur = &p[i];
+        lct_subnet_t *pre = cur->prefix;
+        while (pre) {
+          // add the subprefix's used addressed to its parents
+          pre->used += cur->used;
+
+          cur = pre;
+          pre = pre->prefix;
+        }
+      }
+    }
 
   return npre;
 }

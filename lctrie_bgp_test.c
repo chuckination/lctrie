@@ -18,7 +18,7 @@
 int main(int argc, char *argv[]) {
   int num = 0;
   lct_subnet_t *p;
-  int nprefixes = 0, nbases = 0;
+  int nprefixes = 0, nbases = 0, nfull = 0;
 
 #if LCT_IP_DISPLAY_PREFIXES
   char pstr[INET_ADDRSTRLEN];
@@ -75,35 +75,35 @@ int main(int argc, char *argv[]) {
 
     switch (p[i].info.type) {
       case IP_SUBNET_BGP:
-        printf("BGP prefix %s/%d for ASN %d\n", pstr, p[i].len, p[i].info.bgp.asn);
+        printf("BGP prefix %s/%d of size %u/%u%s for ASN %d\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "",  p[i].info.bgp.asn);
         break;
 
       case IP_SUBNET_PRIVATE:
-        printf("Private class %c subnet for %s/%d\n", p[i].info.priv.class, pstr, p[i].len);
+        printf("Private class %c subnet for %s/%d of size %u/%u%s\n", p[i].info.priv.class, pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
         break;
 
       case IP_SUBNET_LINKLOCAL:
-        printf("Link local subnet for %s/%d\n", pstr, p[i].len);
+        printf("Link local subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
         break;
 
       case IP_SUBNET_MULTICAST:
-        printf("Multicast subnet for %s/%d\n", pstr, p[i].len);
+        printf("Multicast subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
         break;
 
       case IP_SUBNET_BROADCAST:
-        printf("Broadcast subnet for %s/%d\n", pstr, p[i].len);
+        printf("Broadcast subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
         break;
 
       case IP_SUBNET_LOOPBACK:
-        printf("Loopback subnet for %s/%d\n", pstr, p[i].len);
+        printf("Loopback subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
         break;
 
       case IP_SUBNET_RESERVED:
-        printf("Reserved subnet for %s/%d, %s\n", pstr, p[i].len, p[i].info.rsv.desc);
+        printf("Reserved subnet for %s/%d of size %u/%u%s, %s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "", p[i].info.rsv.desc);
         break;
 
       case IP_SUBNET_BOGON:
-        printf("Bogon subnet for %s/%d\n", pstr, p[i].len);
+        printf("Bogon subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
         break;
 
 
@@ -111,11 +111,15 @@ int main(int argc, char *argv[]) {
         printf("Invalid prefix type for %s/%d\n", pstr, p[i].len);
         break;
     }
+
+    if (p[i].used == p[i].size)
+      ++nfull;
   }
 #endif
   printf("Read %d unique subnets.\n", num);
   printf("%d are prefixes of %d base subnets using %lu kB memory.\n",
          nprefixes, nbases, ((nprefixes + nbases) * sizeof(lct_subnet_t))/1024);
+  printf("%d prefixes are fully allocated to subprefixes.\n", nfull);
 
   return 0;
 }

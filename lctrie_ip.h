@@ -16,7 +16,7 @@
 #define IP_SUBNET_BOGON       8
 #define IP_SUBNET_USER        9
 
-#define LCT_IP_DEBUG_PREFIXES 1
+#define LCT_IP_DEBUG_PREFIXES 0
 
 // Bit manipulation macros
 //
@@ -62,12 +62,17 @@ typedef union lct_subnet_info {
 } lct_subnet_info_t;
 
 // the actual IP subnet structure
-#define IP_BASE   0
-#define IP_PREFIX 1
+#define IP_BASE       0
+#define IP_PREFIX     1
+#define IP_PREFIX_EXH 2 // prefix full exhausted by its subprefixes
 typedef struct lct_subnet {
   uint8_t type;         // prefix type
   uint8_t len;          // CIDR address prefix length
   uint32_t addr;        // subnet address
+
+  // TODO split this off into a separate structure for matching.
+  uint32_t size;        // maximum subnet size possible (including special addresses)
+  uint32_t used;        // count of underlying subprefixes sizes
 
   // pointer to our next highest prefix
   struct lct_subnet *prefix;
