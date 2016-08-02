@@ -61,24 +61,34 @@ typedef union lct_subnet_info {
   lct_subnet_usr_t usr;
 } lct_subnet_info_t;
 
+// subnet types
+#define IP_BASE         0
+#define IP_PREFIX       1
+#define IP_PREFIX_FULL  2 // prefix full exhausted by its subprefixes
+
+// nil prefix index canary
+#define IP_PREFIX_NIL   UINT32_MAX
+
 // the actual IP subnet structure
-#define IP_BASE       0
-#define IP_PREFIX     1
-#define IP_PREFIX_EXH 2 // prefix full exhausted by its subprefixes
 typedef struct lct_subnet {
   uint8_t type;         // prefix type
   uint8_t len;          // CIDR address prefix length
   uint32_t addr;        // subnet address
 
-  // TODO split this off into a separate structure for matching.
-  uint32_t size;        // maximum subnet size possible (including special addresses)
-  uint32_t used;        // count of underlying subprefixes sizes
-
-  // pointer to our next highest prefix
-  struct lct_subnet *prefix;
+  // index to our next highest prefix, .  this limits us to about 4 billion entries,
+  // and we're not going to get close because the number of subnets is always going
+  // to be less than the number of theoretical IP addresses.
+  //
+  // this also means that the structure cannot be
+  uint32_t prefix;
 
   lct_subnet_info_t info;
 } lct_subnet_t;
+
+typedef struct lct_ip_stats {
+  uint32_t size;  // size of the subnet
+  uint32_t used;  // size of the subprefixed address space
+} lct_ip_stats_t;
 
 // fill in user array with reserved IP subnets
 // according to RFC 5735

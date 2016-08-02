@@ -75,35 +75,35 @@ int main(int argc, char *argv[]) {
 
     switch (p[i].info.type) {
       case IP_SUBNET_BGP:
-        printf("BGP prefix %s/%d of size %u/%u%s for ASN %d\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "",  p[i].info.bgp.asn);
+        printf("BGP%s prefix %s/%d for ASN %d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len,  p[i].info.bgp.asn);
         break;
 
       case IP_SUBNET_PRIVATE:
-        printf("Private class %c subnet for %s/%d of size %u/%u%s\n", p[i].info.priv.class, pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
+        printf("Private class %c%s subnet for %s/%d\n", p[i].info.priv.class, p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len);
         break;
 
       case IP_SUBNET_LINKLOCAL:
-        printf("Link local subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
+        printf("Link local%s subnet for %s/%d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len);
         break;
 
       case IP_SUBNET_MULTICAST:
-        printf("Multicast subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
+        printf("Multicast%s subnet for %s/%d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len);
         break;
 
       case IP_SUBNET_BROADCAST:
-        printf("Broadcast subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
+        printf("Broadcast%s subnet for %s/%d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len);
         break;
 
       case IP_SUBNET_LOOPBACK:
-        printf("Loopback subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
+        printf("Loopback%s subnet for %s/%d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len);
         break;
 
       case IP_SUBNET_RESERVED:
-        printf("Reserved subnet for %s/%d of size %u/%u%s, %s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "", p[i].info.rsv.desc);
+        printf("Reserved%s subnet for %s/%d, %s\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len, p[i].info.rsv.desc);
         break;
 
       case IP_SUBNET_BOGON:
-        printf("Bogon subnet for %s/%d of size %u/%u%s\n", pstr, p[i].len, p[i].used, p[i].size, p[i].used == p[i].size ? " FULL" : "");
+        printf("Bogon%s subnet for %s/%d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len);
         break;
 
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
         break;
     }
 
-    if (p[i].used == p[i].size)
+    if (p[i].type == IP_PREFIX_FULL)
       ++nfull;
   }
 #endif

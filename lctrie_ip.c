@@ -104,6 +104,37 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
   uint32_t prefix2;
 #endif
 
+  // if the array in p is shrunk in any way, it invalidates
+  // the prefix indexes in the table and forces us to recaculate
+  // over again.
+  //
+  // we could remove this restriction if we stored a node's prefix
+  // as a pointer, but that would force us to store node statistics
+  // with the node instead of temporarily and throw them away later.
+
+  lct_ip_stats_t *stats = (lct_ip_stats_t *) calloc(size, sizeof(lct_ip_stats_t));
+  if (!stats) {
+    fprintf(stderr, "Failed to allocate prefix statistics buffer\n");
+    return 0;
+  }
+
+  // wow, this function is heavy.  real heavy, man.  no wonder
+  // the internet was invented by deadhead geniuses in california, man.
+  //
+  // 5 full passes through the array to ensure operation
+  // atomicity for the next step is necessary for the algorithm.
+
+  // first, mark every node's prefix as invalid.
+  // we can't do this consecutively with the following
+  // step because an iteration can theoretically descend
+  // deeper in the array to set a node's prefix index to
+  // a value, and we wouldn't be able to compare that field
+  // to a default canary value without first having initialized
+  // everything on an initial walk through the array.
+  for (int i = 0; i < size; ++i) {
+    p[i].prefix = IP_PREFIX_NIL;
+  }
+
   // go through and determine which subnets are prefixes of other subnets
   for (int i = 0; i < size; ++i) {
     int j = i + 1;  // fake out a psuedo second iterator
@@ -121,7 +152,7 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
 #endif
 
       // mark the prefix of the second node
-      p[j].prefix = &p[i];
+      p[j].prefix = i;
 
       for (int k = j + 1; k < size && subnet_isprefix(&p[i], &p[k]); ++k) {
 #if LCT_IP_DEBUG_PREFIXES
@@ -135,7 +166,7 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
         // mark the prefix of the following node
         // if there's another more specific prefix, it will be overwritten
         // on additional passes further into the array
-        p[k].prefix = &p[i];
+        p[k].prefix = i;
       }
 
       p[i].type = IP_PREFIX;
@@ -144,8 +175,8 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
     else {
       p[i].type = IP_BASE;
     }
-    p[i].size = 1 << (32 - p[i].len);
-    p[i].used = 0;
+    stats[i].size = 1 << (32 - p[i].len);
+    stats[i].used = 0;
   }
 
   // walk through the sorted array forwards to add the bases to their prefixes
@@ -153,28 +184,42 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
     // we'll walk the tree up from the bases up through their prefixes
     // the depends on prefixes with no prefix having their pre pointer
     // assigned to NUL
-    if (p[i].type == IP_BASE && p[i].prefix) {
+    if (IP_BASE == p[i].type && IP_PREFIX_NIL != p[i].prefix) {
       // add the base's size to it's prefix's count
-      p[i].prefix->used += p[i].size;
+      stats[p[i].prefix].used += stats[i].size;
     }
   }
 
   // walk backward through the prefixes to add their counts to their parent
-  // prefixes if they have any
-  if (size > 0)
+  // prefixes if they have any.  due to the numerical properties of the ip
+  // addresses, the last subnet sorted will always be a base address and never
+  // have any subprefixes
+  if (size > 1) {
     for (int i = size - 1; i >= 0; --i) {
       if (p[i].type == IP_PREFIX) {
-        lct_subnet_t *cur = &p[i];
-        lct_subnet_t *pre = cur->prefix;
-        while (pre) {
+        uint32_t cur = i;
+        uint32_t pre = p[cur].prefix;
+        while (IP_PREFIX_NIL != pre) {
           // add the subprefix's used addressed to its parents
-          pre->used += cur->used;
+          stats[pre].used += stats[cur].used;
 
+          // move back to the next pair
           cur = pre;
-          pre = pre->prefix;
+          pre = p[pre].prefix;
         }
       }
     }
+
+    // go through the array yet again to find full prefixes
+    for (int i = 0; i < size; ++i ) {
+      // if the prefix is fully used, mark it full
+      if (stats[i].used == stats[i].size)
+        p[i].type = IP_PREFIX_FULL;
+    }
+  }
+
+  // we're done with the statistics, dump them.
+  free(stats);
 
   return npre;
 }
