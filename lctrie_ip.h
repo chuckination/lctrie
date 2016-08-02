@@ -108,7 +108,7 @@ extern size_t subnet_dedup(lct_subnet_t *subnets, size_t size);
 
 // calculates subnets that are prefixes of other subnets
 // and returns the number found
-extern size_t subnet_prefix(lct_subnet_t *subnets, size_t size);
+extern size_t subnet_prefix(lct_subnet_t *subnets, lct_ip_stats_t *stats, size_t size);
 
 // is subnet s a prefix of the subnet t?
 // requires the two elements to be sorted and in order according

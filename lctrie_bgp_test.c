@@ -59,8 +59,15 @@ int main(int argc, char *argv[]) {
   num -= subnet_dedup(p, num);
   p = realloc(p, num * sizeof(lct_subnet_t));
 
+  // allocate a buffer for the IP stats
+  lct_ip_stats_t *stats = (lct_ip_stats_t *) calloc(num, sizeof(lct_ip_stats_t));
+  if (!stats) {
+    fprintf(stderr, "Failed to allocate prefix statistics buffer\n");
+    return 0;
+  }
+
   // count which subnets are prefixes of other subnets
-  nprefixes = subnet_prefix(p, num);
+  nprefixes = subnet_prefix(p, stats, num);
   nbases = num - nprefixes;
 
 #if LCT_IP_DISPLAY_PREFIXES
@@ -117,9 +124,15 @@ int main(int argc, char *argv[]) {
   }
 #endif
   printf("Read %d unique subnets.\n", num);
-  printf("%d are prefixes of %d base subnets using %lu kB memory.\n",
-         nprefixes, nbases, ((nprefixes + nbases) * sizeof(lct_subnet_t))/1024);
+  printf("%d are prefixes of %d base subnets using %lu kB memory for "
+         "subnet descriptors and %lu kB for ephemeral IP stats.\n",
+         nprefixes, nbases,
+         (num * sizeof(lct_subnet_t))/1024, (num * sizeof(lct_ip_stats_t))/1024);
   printf("%d prefixes are fully allocated to subprefixes.\n", nfull);
+
+  // we're done with the statistics and subnets, dump them.
+  free(stats);
+  free(p);
 
   return 0;
 }

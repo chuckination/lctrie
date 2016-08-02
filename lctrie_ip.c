@@ -94,7 +94,7 @@ size_t subnet_dedup(lct_subnet_t *subnets, size_t size) {
   return ndup;
 }
 
-size_t subnet_prefix(lct_subnet_t *p, size_t size) {
+size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
   size_t npre = 0;
 
 #if LCT_IP_DEBUG_PREFIXES
@@ -111,12 +111,6 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
   // we could remove this restriction if we stored a node's prefix
   // as a pointer, but that would force us to store node statistics
   // with the node instead of temporarily and throw them away later.
-
-  lct_ip_stats_t *stats = (lct_ip_stats_t *) calloc(size, sizeof(lct_ip_stats_t));
-  if (!stats) {
-    fprintf(stderr, "Failed to allocate prefix statistics buffer\n");
-    return 0;
-  }
 
   // wow, this function is heavy.  real heavy, man.  no wonder
   // the internet was invented by deadhead geniuses in california, man.
@@ -217,9 +211,6 @@ size_t subnet_prefix(lct_subnet_t *p, size_t size) {
         p[i].type = IP_PREFIX_FULL;
     }
   }
-
-  // we're done with the statistics, dump them.
-  free(stats);
 
   return npre;
 }
