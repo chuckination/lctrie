@@ -34,32 +34,32 @@
 // the current search position where n is the node's branch value
 // and m is the node's skip value.
 //
-// A leaf node may or may not have children.  If 
-//
-// Since each node is only the size of two pointers on 32 and 64 bit systems
-// this should be a relatively small data structure even for large network
-// sets (such as the union of RFC1918 and the latest ASN ipv4 subnet assignments
-// freshly splurped up from the internet).
+// Since all of the details about the subnets are in the external
+// subnet structure, we only need to store the index to the
+// the node in that array to get information about the subnet
+// size and prefix address.  We also have the prefix pointer to
+// walk up the tree to compare against prefixes of this base node
+// in the tree.
 typedef struct lct_node {
   uint8_t branch;         // size of the child node array
   uint8_t skip;           // number of bits to skip of the key before extracting
-                          // the child branch index from the search key
-  uint32_t key;           // copy of this node's key
-  lct_subnet_t *data;     // pointer to leaf data, NULL if not a leaf
-  struct lct_node *node;  // pointer to the first element of the child array
+  uint32_t index;         // index of this node's first child if a branch
 } lct_node_t;
 
 // The size of the the trie is going to be
-// 2 * number of prefixes stored with nulls
+// 2 * number of bases stored with nulls
 // sparsely mixed amongst the trie levels.
 
 // LC Trie data structure
 // size - number of nodes in the trie
 // trie - the root of the trie
 typedef struct lct {
-  size_t ncount;  // number of trie nodes, will always be <= 2 * pcount
-  size_t pcount;  // number of trie leaves, will always be smaller than ncount
-  lct_node_t *root;
+  uint32_t ncount;    // number of trie nodes, will always be <= 2 * pcount
+  uint32_t bnum;      // number of trie base subnet leaves
+  uint32_t *base;     // array of indexes in the base array to indexes
+                      // into the subnet info data array.
+  lct_subnet_t *nets; // pointer to a sorted and prefixed array of subnets
+  lct_node_t *root;   // pointer to the root of the trie node tree
 } lct_t;
 
 // lifecycle functions
@@ -70,7 +70,7 @@ typedef struct lct {
 // well for a large number of dynamic updates, but keeping updates to a minimum
 // and potentially double buffering the data can reduce latency for these
 // events.
-void lct_build(lct_t *trie, lct_subnet_t *bases, lct_subnet_t *prefixes, size_t pcount);
+void lct_build(lct_t *trie, lct_subnet_t *bases, uint32_t size);
 void lct_free(lct_t *trie);
 
 // search function

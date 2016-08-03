@@ -134,10 +134,10 @@ int main(int argc, char *argv[]) {
          (subnet_bytes > 1024) ? (subnet_bytes > 1024 * 1024) ? "mB" : "kB" : "B",
          stats_bytes / ((stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
-  printf("%d subnets are fully allocated to subprefixes culling %1.2f%% necessary trie nodes.\n",
+  printf("%d subnets are fully allocated to subprefixes culling %1.2f%% subnets from the match count.\n",
          nfull, (100.0f * nfull) / num);
-  printf("%d sparsely allocated prefixes of %d base subnets will have %1.2f%% interior nodes in the search trie.\n",
-         nprefixes - nfull, nbases, (100.0f * (nprefixes - nfull)) / num);
+  printf("%d sparsely allocated prefixes of %d base subnets in the possible to match.\n",
+         nprefixes - nfull, nbases);
 
   // we're done with the statistics and subnets, dump them.
   free(stats);
