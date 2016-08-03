@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
 #if LCT_IP_READ_PREFIXES_FILES
   // read in the ASN prefixes
   int rc;
-  printf("Reading prefixes from %s...\n", argv[1]);
+  printf("Reading prefixes from %s...\n\n", argv[1]);
   if (0 > (rc = read_prefix_table(argv[1], &p[num], BGP_MAX_ENTRIES - num))) {
     fprintf(stderr, "could not read prefix file \"%s\"\n", argv[1]);
     return rc;
@@ -73,6 +73,7 @@ int main(int argc, char *argv[]) {
 #if LCT_IP_DISPLAY_PREFIXES
   // we're storing twice as many subnets as necessary for easy
   // iteration over the entire sorted subnet list.
+  printf("Enumerating database, get ready! 3..2..1..GO!!!\n\n");
   for (int i = 0; i < num; i++) {
     prefix = htonl(p[i].addr);
     if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr))) {
@@ -82,7 +83,7 @@ int main(int argc, char *argv[]) {
 
     switch (p[i].info.type) {
       case IP_SUBNET_BGP:
-        printf("BGP%s prefix %s/%d for ASN %d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len,  p[i].info.bgp.asn);
+        printf("BGP%s prefix %s/%d (%d/%d) for ASN %d\n", p[i].type == IP_PREFIX_FULL ? " FULL" : "", pstr, p[i].len, stats[i].used, stats[i].size,  p[i].info.bgp.asn);
         break;
 
       case IP_SUBNET_PRIVATE:
@@ -123,12 +124,14 @@ int main(int argc, char *argv[]) {
       ++nfull;
   }
 #endif
-  printf("Read %d unique subnets.\n", num);
-  printf("%d are prefixes of %d base subnets using %lu kB memory for "
-         "subnet descriptors and %lu kB for ephemeral IP stats.\n",
-         nprefixes, nbases,
-         (num * sizeof(lct_subnet_t))/1024, (num * sizeof(lct_ip_stats_t))/1024);
-  printf("%d prefixes are fully allocated to subprefixes.\n", nfull);
+
+  printf("Stats:\n");
+  printf("\nRead %d unique subnets using %lu kB memory for subnet descriptors and %lu kB for ephemeral IP stats.\n",
+         num, (num * sizeof(lct_subnet_t))/1024, (num * sizeof(lct_ip_stats_t))/1024);
+  printf("%d subnets are fully allocated to subprefixes culling %1.2f%% necessary trie nodes.\n",
+         nfull, (100.0f * nfull) / num);
+  printf("%d sparsely allocated prefixes of %d base subnets will have %1.2f%% interior nodes in the search trie.\n",
+         nprefixes - nfull, nbases, (100.0f * (nprefixes - nfull)) / num);
 
   // we're done with the statistics and subnets, dump them.
   free(stats);

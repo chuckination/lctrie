@@ -1,12 +1,12 @@
 
-all: lctrie_bgp_test
+all: lctrie_test
 
-lctrie_bgp_test: lctrie_bgp_test.o lctrie.o lctrie_bgp.o lctrie_ip.o
+lctrie_test: lctrie_test.o lctrie.o lctrie_bgp.o lctrie_ip.o
 
 clean:
 	rm -rf .d
 	rm -f *.o
-	rm -f lctrie_bgp_test
+	rm -f lctrie_test
 
 CFLAGS = -g -ggdb -std=gnu99 -Wall
 LDFLAGS = -g -ggdb

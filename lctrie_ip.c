@@ -89,7 +89,7 @@ size_t subnet_dedup(lct_subnet_t *subnets, size_t size) {
   }
 
   if (ndup)
-    printf("%lu duplicates removed\n", ndup);
+    printf("%lu duplicates removed\n\n", ndup);
 
   return ndup;
 }
@@ -178,38 +178,17 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
     // we'll walk the tree up from the bases up through their prefixes
     // the depends on prefixes with no prefix having their pre pointer
     // assigned to NUL
-    if (IP_BASE == p[i].type && IP_PREFIX_NIL != p[i].prefix) {
+    if (IP_PREFIX_NIL != p[i].prefix) {
       // add the base's size to it's prefix's count
       stats[p[i].prefix].used += stats[i].size;
     }
   }
 
-  // walk backward through the prefixes to add their counts to their parent
-  // prefixes if they have any.  due to the numerical properties of the ip
-  // addresses, the last subnet sorted will always be a base address and never
-  // have any subprefixes
-  if (size > 1) {
-    for (int i = size - 1; i >= 0; --i) {
-      if (p[i].type == IP_PREFIX) {
-        uint32_t cur = i;
-        uint32_t pre = p[cur].prefix;
-        while (IP_PREFIX_NIL != pre) {
-          // add the subprefix's used addressed to its parents
-          stats[pre].used += stats[cur].used;
-
-          // move back to the next pair
-          cur = pre;
-          pre = p[pre].prefix;
-        }
-      }
-    }
-
-    // go through the array yet again to find full prefixes
-    for (int i = 0; i < size; ++i ) {
-      // if the prefix is fully used, mark it full
-      if (stats[i].used == stats[i].size)
-        p[i].type = IP_PREFIX_FULL;
-    }
+  // go through the array yet again to find full prefixes
+  for (int i = 0; i < size; ++i ) {
+    // if the prefix is fully used, mark it full
+    if (stats[i].used == stats[i].size)
+      p[i].type = IP_PREFIX_FULL;
   }
 
   return npre;
@@ -250,9 +229,11 @@ int init_reserved_subnets(lct_subnet_t *subnets, size_t size) {
   // 240.0.0.0/4         Reserved for Future Use    RFC 1112, Section 4
   // 255.255.255.255/32  Limited Broadcast          RFC 919, Section 7
   //                                                RFC 922, Section 7
+ 
+  // TODO define an x-macro so we can define this data in table form?
+  // Would either need a switch case statement or a define for each type
 
   // just build the reservations by hand in order
-  // TODO define an x-macro so we can define this data in table form
 
   // RFC 1122, Sect. 3.2.1.3 "This" Networks
   //
