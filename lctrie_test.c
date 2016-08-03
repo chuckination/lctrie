@@ -125,9 +125,15 @@ int main(int argc, char *argv[]) {
   }
 #endif
 
-  printf("Stats:\n");
-  printf("\nRead %d unique subnets using %lu kB memory for subnet descriptors and %lu kB for ephemeral IP stats.\n",
-         num, (num * sizeof(lct_subnet_t))/1024, (num * sizeof(lct_ip_stats_t))/1024);
+  uint32_t subnet_bytes = num * sizeof(lct_subnet_t);
+  uint32_t stats_bytes = num * sizeof(lct_ip_stats_t);
+  printf("\nStats:\n");
+  printf("Read %d unique subnets using %u %s memory for subnet descriptors and %u %s for ephemeral IP stats.\n",
+         num,
+         subnet_bytes / ((subnet_bytes > 1024) ? (subnet_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
+         (subnet_bytes > 1024) ? (subnet_bytes > 1024 * 1024) ? "mB" : "kB" : "B",
+         stats_bytes / ((stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
+         (stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
   printf("%d subnets are fully allocated to subprefixes culling %1.2f%% necessary trie nodes.\n",
          nfull, (100.0f * nfull) / num);
   printf("%d sparsely allocated prefixes of %d base subnets will have %1.2f%% interior nodes in the search trie.\n",
