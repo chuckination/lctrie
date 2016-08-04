@@ -120,8 +120,15 @@ int main(int argc, char *argv[]) {
         break;
     }
 
+    // count up the full prefixes to calculate the savings on trie nodes
     if (p[i].type == IP_PREFIX_FULL)
       ++nfull;
+
+    // quick error check on the optimized prefix indexes
+    uint32_t prefix = p[i].prefix;
+    if (prefix != IP_PREFIX_NIL && p[prefix].type == IP_PREFIX_FULL) {
+      printf("ERROR: optimized subnet index points to a full prefix\n");
+    }
   }
 #endif
 
@@ -136,7 +143,7 @@ int main(int argc, char *argv[]) {
          (stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
   printf("%d subnets are fully allocated to subprefixes culling %1.2f%% subnets from the match count.\n",
          nfull, (100.0f * nfull) / num);
-  printf("%d sparsely allocated prefixes of %d base subnets in the possible to match.\n",
+  printf("%d optimized prefixes of %d base subnets in the possible to match.\n",
          nprefixes - nfull, nbases);
 
   // we're done with the statistics and subnets, dump them.

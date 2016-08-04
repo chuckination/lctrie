@@ -97,11 +97,11 @@ size_t subnet_dedup(lct_subnet_t *subnets, size_t size) {
 size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
   size_t npre = 0;
 
-#if LCT_IP_DEBUG_PREFIXES
-  char pstr[INET_ADDRSTRLEN];
   uint32_t prefix;
-  char pstr2[INET_ADDRSTRLEN];
+#if LCT_IP_DEBUG_PREFIXES
   uint32_t prefix2;
+  char pstr[INET_ADDRSTRLEN];
+  char pstr2[INET_ADDRSTRLEN];
 #endif
 
   // if the array in p is shrunk in any way, it invalidates
@@ -147,6 +147,7 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
 
       // mark the prefix of the second node
       p[j].prefix = i;
+      p[j].fullprefix = i;
 
       for (int k = j + 1; k < size && subnet_isprefix(&p[i], &p[k]); ++k) {
 #if LCT_IP_DEBUG_PREFIXES
@@ -161,6 +162,7 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
         // if there's another more specific prefix, it will be overwritten
         // on additional passes further into the array
         p[k].prefix = i;
+        p[k].fullprefix = i;
       }
 
       p[i].type = IP_PREFIX;
@@ -189,6 +191,19 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
     // if the prefix is fully used, mark it full
     if (stats[i].used == stats[i].size)
       p[i].type = IP_PREFIX_FULL;
+  }
+
+  // go through the array yet again to find full prefixes
+  // and update the prefix pointer to the next non-full prefix or
+  // IP_PREFIX_NIL.
+  //
+  // We can't do this in a consective pass since the subnet nodes don't
+  // have indexes back to their base subnets.
+  for (int i = 0; i < size; ++i ) {
+    // if the prefix is fully used, mark it full
+    prefix = p[i].prefix;
+    if (prefix != IP_PREFIX_NIL && p[prefix].type == IP_PREFIX_FULL)
+      p[i].prefix = p[prefix].prefix;
   }
 
   return npre;
@@ -229,7 +244,7 @@ int init_reserved_subnets(lct_subnet_t *subnets, size_t size) {
   // 240.0.0.0/4         Reserved for Future Use    RFC 1112, Section 4
   // 255.255.255.255/32  Limited Broadcast          RFC 919, Section 7
   //                                                RFC 922, Section 7
- 
+
   // TODO define an x-macro so we can define this data in table form?
   // Would either need a switch case statement or a define for each type
 

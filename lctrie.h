@@ -45,6 +45,8 @@ typedef struct lct_node {
   uint8_t skip;           // number of bits to skip of the key before extracting
   uint32_t index;         // index of this node's first child if a branch
 } lct_node_t;
+// Leave this structure unpacked so the compiler will memory align it
+// in a mannder that favors fast access over memory unit size.
 
 // The size of the the trie is going to be
 // 2 * number of bases stored with nulls

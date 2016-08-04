@@ -71,19 +71,26 @@ typedef union lct_subnet_info {
 
 // the actual IP subnet structure
 typedef struct lct_subnet {
+  uint32_t addr;        // subnet address
   uint8_t type;         // prefix type
   uint8_t len;          // CIDR address prefix length
-  uint32_t addr;        // subnet address
 
-  // index to our next highest prefix, .  this limits us to about 4 billion entries,
-  // and we're not going to get close because the number of subnets is always going
-  // to be less than the number of theoretical IP addresses.
-  //
-  // this also means that the structure cannot be
+  // index to our next highest prefix, .  this limits us to about 4 billion
+  // entries, and we're not going to get close because the number of subnets
+  // is always going to be less than the number of theoretical IP addresses.
   uint32_t prefix;
+  uint32_t fullprefix;
+  // Full prefix indexes don't cost us any extra memory on amd64, and allows
+  // us to have a logical pointer to the next shortest prefix match while
+  // also having an optimized pointer to the next prefix group we could
+  // possibly match on.  It will reduce the number of short branch factor
+  // interior trie nodes.
+
 
   lct_subnet_info_t info;
 } lct_subnet_t;
+// Leave this structure unpacked so the compiler will memory align it
+// in a mannder that favors fast access over memory unit size.
 
 typedef struct lct_ip_stats {
   uint32_t size;  // size of the subnet
