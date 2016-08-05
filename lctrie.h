@@ -57,8 +57,8 @@ typedef struct lct_node {
 // trie - the root of the trie
 typedef struct lct {
   uint32_t ncount;    // number of trie nodes, will always be <= 2 * pcount
-  uint32_t bnum;      // number of trie base subnet leaves
-  uint32_t *base;     // array of indexes in the base array to indexes
+  uint32_t bcount;      // number of trie base subnet leaves
+  uint32_t *bases;     // array of indexes in the base array to indexes
                       // into the subnet info data array.
   lct_subnet_t *nets; // pointer to a sorted and prefixed array of subnets
   lct_node_t *root;   // pointer to the root of the trie node tree
@@ -72,7 +72,7 @@ typedef struct lct {
 // well for a large number of dynamic updates, but keeping updates to a minimum
 // and potentially double buffering the data can reduce latency for these
 // events.
-void lct_build(lct_t *trie, lct_subnet_t *bases, uint32_t size);
+int lct_build(lct_t *trie, lct_subnet_t *bases, uint32_t size);
 void lct_free(lct_t *trie);
 
 // search function

@@ -145,6 +145,8 @@ int main(int argc, char *argv[]) {
          nfull, (100.0f * nfull) / num);
   printf("%d optimized prefixes of %d base subnets in the possible to match.\n",
          nprefixes - nfull, nbases);
+  printf("The trie will consist of %1.2f%% base subnets and %1.2f%% total nodes of the full subnet list.\n",
+         (100.0f * nbases) / (num - nfull), (100.0f * (num - nfull)) / num);
 
   // we're done with the statistics and subnets, dump them.
   free(stats);
