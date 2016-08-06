@@ -148,6 +148,13 @@ int main(int argc, char *argv[]) {
   printf("The trie will consist of %1.2f%% base subnets and %1.2f%% total subnets from the full subnet list.\n",
          (100.0f * nbases) / (num), (100.0f * (num - nfull)) / num);
 
+  // TODO actually build the trie and get the trie node count for statistics printing
+  //
+  // TODO run some basic tests with known data sets to test that we're matching base subnets, prefix subnets
+  //
+  // TODO run some performance tests by looping for an interval and counting how many lookups we can make in
+  //      that period.  Tally up the address types matched and print those statistics.
+
   // we're done with the statistics and subnets, dump them.
   free(stats);
   free(p);
