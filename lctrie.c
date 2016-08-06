@@ -222,6 +222,10 @@ lct_subnet_t *lct_find(lct_t *trie, uint32_t key) {
   int pos, branch, idx;
   uint32_t bitmask, prep;
 
+  // idiot check
+  if (!trie)
+    return NULL;
+
   // Traverse the trie
   node = &trie->root[0];
   pos = node->skip;
