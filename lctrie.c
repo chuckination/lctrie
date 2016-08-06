@@ -2,47 +2,163 @@
 
 #include <stdio.h>
 
-static void compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
-                         uint32_t count, uint32_t *skip, uint32_t *newprefix) {
+#define FILLFACT 50
+
+static uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
+                         uint32_t num, uint32_t *newprefix) {
   // there is no skip factor on the root node
   if ((prefix == 0) && (first == 0)) {
-    *skip = 0;
-    return;
+    return 0;
   }
 
-  // TODO finish me!
+  uint32_t low, high;
+  uint32_t i;
+   
+  // Compute the new prefix
+  low = REMOVE(prefix, trie->nets[trie->bases[first]].addr);
+  high = REMOVE(prefix, trie->nets[trie->bases[first + num - 1]].addr);
+  i = prefix;
+  while (EXTRACT(i, 1, low) == EXTRACT(i, 1, high))
+    i++;
+  *newprefix = i;
+
+  return (*newprefix - prefix);
 }
 
-static void compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
-                           uint32_t count, uint32_t *branch, uint32_t *newprefix) {
+static uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
+                           uint32_t num, uint32_t newprefix) {
   // branch factor results in 1 << branch trie subnodes
+ 
+  // always use a branch factor of 1 for two element arrays
+  if (num == 2) {
+    return 1;
+  }
 
-  // the first two levels are fixed no matter what.
   // always use a branching factor of 4 bits at the root.
   // multicast and reserved spaces are /4 networks and
   // we'll need to check for those.
   if ((prefix == 0) && (first == 0)) {
-    *branch = 2;
-    return;
-  }
- 
-  // always use a branch factor of 2 for two element arrays
-  if (count == 2) {
-    *branch = 2;
-    return;
+    return 2;
   }
 
-  // TODO finish me!
+  int i, pat, bits, count, patfound;
+
+  // Compute the number of bits that can be used for branching.
+  // We have at least two branches. Therefore we start the search
+  // at 2^b = 4 branches.
+  bits = 1;
+  do {
+    bits++;
+    if (num < ((FILLFACT * (1<<bits)) / 100) ||
+        newprefix + bits > sizeof(uint32_t))
+      break;
+    i = first;
+    pat = 0;
+    count = 0;
+    while (pat < 1<<bits) {
+      patfound = 0;
+      while (i < first + num &&
+             pat == EXTRACT(newprefix, bits, trie->nets[trie->bases[i]].addr)) {
+        i++;
+        patfound = 1;
+      }
+      if (patfound)
+        count++;
+      pat++;
+    }
+  } while (count >= ((FILLFACT * (1<<bits)) / 100));
+  return bits - 1;
 }
 
-static void build_inner(lct_t *trie, uint32_t prefix, uint32_t first, uint32_t count, uint32_t pos) {
-  // TODO finish me!
+static void build_inner(lct_t *trie, uint32_t prefix, uint32_t first, uint32_t num, uint32_t pos) {
+  int k, p, idx, bits;
+  uint32_t bitpat, newprefix, i;
+  uint8_t branch;
+
+  if (num == 1) {
+    trie->root[pos].branch = 0;
+    trie->root[pos].skip = 0;
+    trie->root[pos].index = first;
+  }
+  else {
+    // calculate the skip and branch for this node
+    trie->root[pos].skip = compute_skip(trie, prefix, first, num, &newprefix);
+    branch = trie->root[pos].branch = compute_branch(trie, prefix, first, num, newprefix);
+
+    // get a pointer to the next unused trie node which is conveniently
+    // located at trie->ncount since our caller allocated this node
+    // for us.  save off the child pointer for this node to it.
+    idx = trie->ncount;
+    trie->root[pos].index = idx;
+
+    // ok, we need to allocate our child nodes before we recurse over them
+    trie->ncount += 1 << branch;
+
+    // Build the subtrees
+    p = first;
+    for (bitpat = 0; bitpat < (1 << branch); ++bitpat) {
+      k = 0;
+      while (p + k < first + num &&
+             EXTRACT(newprefix, branch, trie->nets[trie->bases[p + k]].addr) == bitpat) {
+        ++k;
+      }
+
+      if (k == 0) {
+        // The leaf should have a pointer either to p-1 or p,
+        // whichever has the longest matching prefix
+        int match1 = 0, match2 = 0;
+
+        // Compute the longest prefix match for p - 1
+        if (p > first) {
+          int prep, len;
+          prep =  trie->nets[trie->bases[p - 1]].prefix;
+          while (prep != IP_PREFIX_NIL && match1 == 0) {
+            len = trie->nets[prep].len;
+            if (len > newprefix &&
+                EXTRACT(newprefix, len - newprefix, trie->nets[trie->bases[p - 1]].addr) ==
+                EXTRACT(32 - branch, len - newprefix, bitpat))
+              match1 = len;
+            else
+              prep = trie->nets[prep].prefix;
+          }
+        }
+
+        // Compute the longest prefix match for p
+        if (p < first + num) {
+          int prep, len;
+          prep =  trie->nets[trie->bases[p]].prefix;
+          while (prep != IP_PREFIX_NIL && match2 == 0) {
+            len = trie->nets[prep].len;
+            if (len > newprefix &&
+                EXTRACT(newprefix, len - newprefix, trie->nets[trie->bases[p]].addr) ==
+                EXTRACT(32 - branch, len - newprefix, bitpat))
+              match2 = len;
+            else
+              prep = trie->nets[prep].prefix;
+          }
+        }
+
+        if ((match1 > match2 && p > first) || p == first + num)
+          build_inner(trie, newprefix + branch, p - 1, 1, idx + bitpat);
+        else
+          build_inner(trie, newprefix + branch, p, 1, idx + bitpat); 
+      } else if (k == 1 && trie->nets[trie->bases[p]].len - newprefix < branch) {
+        bits = branch - trie->nets[trie->bases[p]].len + newprefix;
+        for (i = bitpat; i < bitpat + (1 << bits); i++)
+          build_inner(trie, newprefix + branch, p, 1, idx + i);
+        bitpat += (1 << bits) - 1;
+      } else
+        build_inner(trie, newprefix + branch, p, k, idx + bitpat);
+      p += k;
+    }
+  }
 }
 
 // since the build algorithm is recursive, we'll pass this API entry point
 // into an interior build function
 int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size) {
-  if (!trie)
+  // why are you hitting yourself, mcfly?
+  if (!trie || !subnets || !size)
     return -1;
 
   // user is responsible for the outer struct,
@@ -80,8 +196,8 @@ int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size) {
   }
 
   // hande off to the inner recursive function
-  trie->ncount = 0; // determine trie node count later
-  build_inner(trie, 0x00000000, 0, trie->bcount, 0);
+  trie->ncount = 1; // we start with the root node allocated
+  build_inner(trie, 0, 0, trie->bcount, 0);
 
   // shrink down the trie node array to its actual size
   trie->root = (lct_node_t *) realloc(trie->root, trie->ncount * sizeof(lct_node_t));

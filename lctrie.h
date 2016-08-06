@@ -7,6 +7,9 @@
 
 #include "lctrie_ip.h"
 
+/* remove the first p bits from string */
+#define REMOVE(p, str)   ((str)<<(p)>>(p))
+
 // Since a Trie is a radix tree, the number of
 // operations to lookup a key in a tree is dependent
 // on the depth of the tree.  The more bits allow for

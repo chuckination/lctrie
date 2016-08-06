@@ -143,10 +143,10 @@ int main(int argc, char *argv[]) {
          (stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
   printf("%d subnets are fully allocated to subprefixes culling %1.2f%% subnets from the match count.\n",
          nfull, (100.0f * nfull) / num);
-  printf("%d optimized prefixes of %d base subnets in the possible to match.\n",
-         nprefixes - nfull, nbases);
-  printf("The trie will consist of %1.2f%% base subnets and %1.2f%% total nodes of the full subnet list.\n",
-         (100.0f * nbases) / (num - nfull), (100.0f * (num - nfull)) / num);
+  printf("%d optimized prefixes of %d base subnets will make a trie with %1.2f%% base leaf nodes.\n",
+         nprefixes - nfull, nbases, (100.0f * nbases) / (num - nfull));
+  printf("The trie will consist of %1.2f%% base subnets and %1.2f%% total subnets from the full subnet list.\n",
+         (100.0f * nbases) / (num), (100.0f * (num - nfull)) / num);
 
   // we're done with the statistics and subnets, dump them.
   free(stats);
