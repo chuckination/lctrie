@@ -6,14 +6,14 @@
 
 static uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
                          uint32_t num, uint32_t *newprefix) {
+  uint32_t low, high;
+  uint32_t i;
+
   // there is no skip factor on the root node
   if ((prefix == 0) && (first == 0)) {
     return 0;
   }
 
-  uint32_t low, high;
-  uint32_t i;
-   
   // Compute the new prefix
   low = REMOVE(prefix, trie->nets[trie->bases[first]].addr);
   high = REMOVE(prefix, trie->nets[trie->bases[first + num - 1]].addr);
@@ -25,10 +25,11 @@ static uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
   return (*newprefix - prefix);
 }
 
+// branch factor results in 1 << branch trie subnodes
 static uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
                            uint32_t num, uint32_t newprefix) {
-  // branch factor results in 1 << branch trie subnodes
- 
+  int i, pat, bits, count, patfound;
+
   // always use a branch factor of 1 for two element arrays
   if (num == 2) {
     return 1;
@@ -40,8 +41,6 @@ static uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
   if ((prefix == 0) && (first == 0)) {
     return 2;
   }
-
-  int i, pat, bits, count, patfound;
 
   // Compute the number of bits that can be used for branching.
   // We have at least two branches. Therefore we start the search
@@ -202,8 +201,6 @@ int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size) {
   // shrink down the trie node array to its actual size
   trie->root = (lct_node_t *) realloc(trie->root, trie->ncount * sizeof(lct_node_t));
 
-  // TODO anything else before we return from this?
-
   return 0;
 }
 
@@ -221,6 +218,34 @@ void lct_free(lct_t *trie) {
 }
 
 lct_subnet_t *lct_find(lct_t *trie, uint32_t key) {
-  // TODO implement me!
+  lct_node_t *node;
+  int pos, branch, idx;
+  uint32_t bitmask, prep;
+
+  // Traverse the trie
+  node = &trie->root[0];
+  pos = node->skip;
+  branch = node->branch;
+  idx = node->index;
+  while (branch != 0) {
+    node = &trie->root[idx + EXTRACT(pos, branch, key)];
+    pos += branch + node->skip;
+    branch = node->branch;
+    idx = node->index;
+  }
+
+  /* Was this a hit? */
+  bitmask = trie->nets[trie->bases[idx]].addr ^ key;
+  if (EXTRACT(0, trie->nets[trie->bases[idx]].len, bitmask) == 0)
+    return &trie->nets[trie->bases[idx]];
+
+  /* If not, look in the prefix tree */
+  prep = trie->nets[trie->bases[idx]].prefix;
+  while (prep != IP_PREFIX_NIL) {
+    if (EXTRACT(0, trie->nets[prep].len, bitmask) == 0)
+      return &trie->nets[prep];
+    prep = trie->nets[prep].prefix;
+  }
+
   return NULL;
 }
