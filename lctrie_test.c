@@ -18,8 +18,10 @@ void print_subnet(lct_subnet_t *subnet) {
   char pstr[INET_ADDRSTRLEN];
   uint32_t prefix;
 
-  if (!subnet)
+  if (!subnet) {
+    printf("NULL, subnet not found\n");
     return;
+  }
 
   prefix = htonl(subnet->addr);
   if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr))) {
@@ -71,8 +73,10 @@ void print_subnet_stats(lct_subnet_t *subnet, lct_ip_stats_t *stats) {
   char pstr[INET_ADDRSTRLEN];
   uint32_t prefix;
 
-  if (!subnet || !stats)
+  if (!subnet || !stats) {
+    printf("NULL, subnet not found\n");
     return;
+  }
 
   prefix = htonl(subnet->addr);
   if (!inet_ntop(AF_INET, &(prefix), pstr, sizeof(pstr))) {
@@ -123,7 +127,8 @@ void print_subnet_stats(lct_subnet_t *subnet, lct_ip_stats_t *stats) {
 int main(int argc, char *argv[]) {
   int num = 0;
   int nprefixes = 0, nbases = 0, nfull = 0;
-  lct_subnet_t *p;
+  uint32_t prefix;
+  lct_subnet_t *p, *subnet = NULL;
   lct_t t;
 
   if (argc != 3) {
@@ -182,7 +187,7 @@ int main(int argc, char *argv[]) {
       ++nfull;
 
     // quick error check on the optimized prefix indexes
-    uint32_t prefix = p[i].prefix;
+    prefix = p[i].prefix;
     if (prefix != IP_PREFIX_NIL && p[prefix].type == IP_PREFIX_FULL) {
       printf("ERROR: optimized subnet index points to a full prefix\n");
     }
@@ -212,13 +217,39 @@ int main(int argc, char *argv[]) {
          node_bytes / ((node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
  
+  printf("\nBeginning test suite...\n\n");
   // TODO run some basic tests with known data sets to test that we're matching base subnets, prefix subnets
   //
   // TODO run some performance tests by looping for an interval and counting how many lookups we can make in
   //      that period.  Tally up the address types matched and print those statistics.
 
+  char *test_addr[] = {
+    "10.1.2.3",
+    "192.168.1.7",
+    "172.16.22.42",
+    "169.254.42.69",
+    "224.123.45.67",
+    "240.123.45.67",
+    "255.255.255.255",
+    NULL
+  };
+  printf("Testing trie matches for some well known subnets...\n");
+  for (int i = 0; test_addr[i] != NULL; ++i) {
+    printf("%s is in ", test_addr[i]);
+
+    if (!inet_pton(AF_INET, test_addr[i], (void *) &prefix)) {
+      fprintf(stderr, "ERROR: %s\n", strerror(errno));
+      continue;
+    }
+
+    subnet = lct_find(&t, ntohl(prefix));
+    print_subnet(subnet);
+  }
+
+#if 0
   printf("\nHit enter key to continue...\n");
   getc(stdin);
+#endif
 
   // we're done with the subnets, stats, and trie;  dump them.
   lct_free(&t);

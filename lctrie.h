@@ -78,9 +78,10 @@ typedef struct lct {
 int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size);
 void lct_free(lct_t *trie);
 
-// search function
+// trie search function
 // return the IP subnet corresponding to the element,
 // otherwise return NULL if not found
+// key must be provided in host byte ordering
 lct_subnet_t *lct_find(lct_t *trie, uint32_t key);
 
 // end #ifndef guard
