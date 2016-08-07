@@ -3,6 +3,7 @@
 #include <libgen.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #include <locale.h>
 
 #include <arpa/inet.h>
@@ -12,9 +13,10 @@
 #include "lctrie_bgp.h"
 #include "lctrie.h"
 
-#define BGP_MAX_ENTRIES 4000000
+#define BGP_MAX_ENTRIES             4000000
+#define BGP_READ_FILE               1
 
-#define LCT_VERIFY_PREFIXES         0
+#define LCT_VERIFY_PREFIXES         1
 #define LCT_IP_DISPLAY_PREFIXES     0
 #define LCT_TEST_SECS               5
 
@@ -134,7 +136,7 @@ void print_subnet_stats(lct_subnet_t *subnet, lct_ip_stats_t *stats) {
 int main(int argc, char *argv[]) {
   int num = 0;
   int nprefixes = 0, nbases = 0, nfull = 0;
-  uint32_t prefix;
+  uint32_t prefix, localprefix;
   lct_subnet_t *p, *subnet = NULL;
   lct_t t;
 
@@ -154,6 +156,7 @@ int main(int argc, char *argv[]) {
   // fill up the rest of the array with reserved IP subnets
   num += init_reserved_subnets(p, BGP_MAX_ENTRIES);
 
+#if BGP_READ_FILE
   // read in the ASN prefixes
   int rc;
   printf("Reading prefixes from %s...\n\n", argv[1]);
@@ -162,6 +165,7 @@ int main(int argc, char *argv[]) {
     return rc;
   }
   num += rc;
+#endif
 
 #if LCT_VERIFY_PREFIXES
   // Add a couple of custom prefixes.  Just use the void *data as a char *desc
@@ -249,7 +253,7 @@ int main(int argc, char *argv[]) {
   printf("The resulting trie has %'u nodes using %u %s memory.\n", t.ncount,
          node_bytes / ((node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
- 
+
   printf("\nBeginning test suite...\n\n");
   // TODO run some basic tests with known data sets to test that we're matching base subnets, prefix subnets
   //
@@ -299,16 +303,24 @@ int main(int argc, char *argv[]) {
     subnet = lct_find(&t, ntohl(prefix));
     print_subnet(subnet);
   }
+  printf("Finished printed trie subnet matches.\n\n");
 
-  printf("\n\nPerformance testing for %d secs...\n", LCT_TEST_SECS);
+  printf("Performance testing for %d secs...\n", LCT_TEST_SECS);
 
+  // init zero stats and seed the RNG
   unsigned int nlookup = 0, nhit = 0, nmiss = 0;
+  srand(time(NULL));  // not crypto secure, but we don't need that
+
+  // setup the start of our local range for the test
+  inet_pton(AF_INET, "192.168.0.0", (void *) &localprefix);
+  localprefix = ntohl(localprefix);
 
   // start the stop clock
   struct timeval start, now;
   gettimeofday(&start, NULL);
   do {
-    // don't bother seeding this, we're not doing crypto
+
+    // just grab a random number and check to match
     prefix = rand();
 
     // record the lookup, hit, and miss stats
@@ -328,12 +340,11 @@ int main(int argc, char *argv[]) {
 
   printf("Complete.\n");
   printf("%'u lookups with %'u hits and %'u misses.\n", nlookup, nhit, nmiss);
-  printf("%'1.1f lookups/sec.\n", (1.0f * nlookup) / LCT_TEST_SECS);
+  printf("%'u lookups/sec.\n\n", nlookup / LCT_TEST_SECS);
 
-#if 0
-  printf("\nHit enter key to continue...\n");
+  printf("Pausing to allow for system analysis.\n");
+  printf("Hit enter key to continue...\n");
   getc(stdin);
-#endif
 
   // we're done with the subnets, stats, and trie;  dump them.
   lct_free(&t);
