@@ -75,7 +75,7 @@ typedef struct lct {
 // well for a large number of dynamic updates, but keeping updates to a minimum
 // and potentially double buffering the data can reduce latency for these
 // events.
-int lct_build(lct_t *trie, lct_subnet_t *bases, uint32_t size);
+int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size);
 void lct_free(lct_t *trie);
 
 // search function

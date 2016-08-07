@@ -176,7 +176,7 @@ int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size) {
   }
 
   for (int i = 0; i < size; ++i) {
-    if (IP_PREFIX_FULL == subnets[i].type) {
+    if (IP_BASE == subnets[i].type) {
       // save off the base's index in the subnet array
       // and increment the bases counter
       trie->bases[trie->bcount++] = i;
