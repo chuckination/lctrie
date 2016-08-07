@@ -12,7 +12,6 @@
 
 #define BGP_MAX_ENTRIES 4000000
 
-#define LCT_IP_READ_PREFIXES_FILES  1
 #define LCT_IP_DISPLAY_PREFIXES     0
 
 void print_subnet(lct_subnet_t *subnet) {
@@ -140,7 +139,6 @@ int main(int argc, char *argv[]) {
   // fill up the rest of the array with reserved IP subnets
   num += init_reserved_subnets(p, BGP_MAX_ENTRIES);
 
-#if LCT_IP_READ_PREFIXES_FILES
   // read in the ASN prefixes
   int rc;
   printf("Reading prefixes from %s...\n\n", argv[1]);
@@ -149,7 +147,6 @@ int main(int argc, char *argv[]) {
     return rc;
   }
   num += rc;
-#endif
 
   // validate subnet prefixes against their netmasks
   // and sort the resulting array
@@ -210,7 +207,7 @@ int main(int argc, char *argv[]) {
   // actually build the trie and get the trie node count for statistics printing
   memset(&t, 0, sizeof(lct_t));
   lct_build(&t, p, num);
-  uint32_t node_bytes = t.ncount * sizeof(lct_node_t);
+  uint32_t node_bytes = t.ncount * sizeof(lct_node_t) + t.bcount * sizeof(uint32_t);
   printf("The resulting trie has %u nodes using %u %s memory.\n", t.ncount,
          node_bytes / ((node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
@@ -219,7 +216,8 @@ int main(int argc, char *argv[]) {
   //
   // TODO run some performance tests by looping for an interval and counting how many lookups we can make in
   //      that period.  Tally up the address types matched and print those statistics.
-  printf("\nHit any key to continue...\n");
+
+  printf("\nHit enter key to continue...\n");
   getc(stdin);
 
   // we're done with the subnets, stats, and trie;  dump them.
