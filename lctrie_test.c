@@ -16,6 +16,10 @@
 #define BGP_MAX_ENTRIES             4000000
 #define BGP_READ_FILE               1
 
+// should we initialize the special prefix ranges?
+#define LCT_INIT_PRIVATE            1
+#define LCT_INIT_SPECIAL            0
+
 #define LCT_VERIFY_PREFIXES         1
 #define LCT_IP_DISPLAY_PREFIXES     0
 #define LCT_TEST_SECS               5
@@ -69,7 +73,7 @@ void print_subnet(lct_subnet_t *subnet) {
       break;
 
     case IP_SUBNET_USER:
-      printf("Reserved%s subnet for %s/%d, %s\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, (char *) subnet->info.usr.data);
+      printf("User%s subnet for %s/%d, %s\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, (char *) subnet->info.usr.data);
       break;
 
     default:
@@ -95,40 +99,43 @@ void print_subnet_stats(lct_subnet_t *subnet, lct_ip_stats_t *stats) {
 
   switch (subnet->info.type) {
     case IP_SUBNET_BGP:
-      printf("BGP%s prefix %s/%d (%d/%d) for ASN %d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, stats->used, stats->size,  subnet->info.bgp.asn);
+      printf("BGP%s Prefix %s/%d (%d/%d) for ASN %d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, stats->used, stats->size,  subnet->info.bgp.asn);
       break;
 
     case IP_SUBNET_PRIVATE:
-      printf("Private class %c%s subnet for %s/%d\n", subnet->info.priv.class, subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
+      printf("Private Class %c%s Subnet %s/%d\n", subnet->info.priv.class, subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
       break;
 
     case IP_SUBNET_LINKLOCAL:
-      printf("Link local%s subnet for %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
+      printf("Link Local%s Subnet %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
       break;
 
     case IP_SUBNET_MULTICAST:
-      printf("Multicast%s subnet for %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
+      printf("Multicast%s Subnet %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
       break;
 
     case IP_SUBNET_BROADCAST:
-      printf("Broadcast%s subnet for %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
+      printf("Broadcast%s Subnet %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
       break;
 
     case IP_SUBNET_LOOPBACK:
-      printf("Loopback%s subnet for %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
+      printf("Loopback%s Subnet %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
       break;
 
     case IP_SUBNET_RESERVED:
-      printf("Reserved%s subnet for %s/%d, %s\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, subnet->info.rsv.desc);
+      printf("Reserved%s Subnet %s/%d, %s\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, subnet->info.rsv.desc);
       break;
 
     case IP_SUBNET_BOGON:
-      printf("Bogon%s subnet for %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
+      printf("Bogon%s Subnet %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
       break;
 
+    case IP_SUBNET_USER:
+      printf("User%s Subnet %s/%d, %s\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, (char *) subnet->info.usr.data);
+      break;
 
     default:
-      printf("Invalid prefix type for %s/%d\n", pstr, subnet->len);
+      printf("Invalid subnet type for %s/%d\n", pstr, subnet->len);
       break;
   }
 }
@@ -153,8 +160,16 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+#if LCT_INIT_PRIVATE
+  // start with the RFC 1918 and 3927 private and link local
+  // subnets as a basis for any table set
+  num += init_private_subnets(p, BGP_MAX_ENTRIES);
+#endif
+
+#if LCT_INIT_SPECIAL
   // fill up the rest of the array with reserved IP subnets
-  num += init_reserved_subnets(p, BGP_MAX_ENTRIES);
+  num += init_special_subnets(p, BGP_MAX_ENTRIES);
+#endif
 
 #if BGP_READ_FILE
   // read in the ASN prefixes
@@ -180,10 +195,18 @@ int main(int argc, char *argv[]) {
 
   // 192.168.1.0/28 home sub-subnet.  used for testing address ranges
   p[num].info.type = IP_SUBNET_USER;
-  p[num].info.usr.data = "Class A/28 sub home network";
-  inet_pton(AF_INET, "192.168.1.0", &(p[num].addr));
+  p[num].info.usr.data = "Class A/24 guest network";
+  inet_pton(AF_INET, "192.168.2.0", &(p[num].addr));
   p[num].addr = ntohl(p[num].addr);
-  p[num].len = 28;
+  p[num].len = 24;
+  ++num;
+
+  // 192.168.1.0/28 home sub-subnet.  used for testing address ranges
+  p[num].info.type = IP_SUBNET_USER;
+  p[num].info.usr.data = "Class A/24 NAS network";
+  inet_pton(AF_INET, "192.168.22.0", &(p[num].addr));
+  p[num].addr = ntohl(p[num].addr);
+  p[num].len = 24;
   ++num;
 #endif
 
@@ -253,6 +276,7 @@ int main(int argc, char *argv[]) {
   printf("The resulting trie has %'u nodes using %u %s memory.\n", t.ncount,
          node_bytes / ((node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
+  printf("The trie's shortest base subnet to match is %hhu bits long\n", t.shortest);
 
   printf("\nBeginning test suite...\n\n");
   // TODO run some basic tests with known data sets to test that we're matching base subnets, prefix subnets
@@ -287,7 +311,9 @@ int main(int argc, char *argv[]) {
     "192.168.1.127",
     "192.168.1.128",
     "192.168.1.255",
-    "192.168.2.255",
+    "192.168.2.128",
+    "192.168.3.128",
+    "192.168.22.128",
 #endif
     NULL
   };

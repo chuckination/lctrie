@@ -210,13 +210,66 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
   return npre;
 }
 
-int init_reserved_subnets(lct_subnet_t *subnets, size_t size) {
-  if (size < 15) {
+int init_private_subnets(lct_subnet_t *subnets, size_t size) {
+  if (size < 4) {
     fprintf(stderr, "Need a prefix buffer of size 15 for reserved ranges\n");
     return -1;
   }
 
-  // 15 reserved address ranges according to RFC 5735
+  // 10.0.0.0/8          Private-Use Networks       RFC 1918
+  // 172.16.0.0/12       Private-Use Networks       RFC 1918
+  // 192.168.0.0/16      Private-Use Networks       RFC 1918
+  // 169.254.0.0/16      Link Local                 RFC 3927
+
+  // build the prefixes by hand
+  int num = 0;
+
+  // RFC 1918 Class A Private Addresses
+  //
+  subnets[num].info.type = IP_SUBNET_PRIVATE;
+  subnets[num].info.priv.class = 'a';
+  inet_pton(AF_INET, "10.0.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 8;
+  ++num;
+
+  // RFC 1918 Class B Private Addresses
+  //
+  subnets[num].info.type = IP_SUBNET_PRIVATE;
+  subnets[num].info.priv.class = 'b';
+  inet_pton(AF_INET, "172.16.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 12;
+  ++num;
+
+  // RFC 1918 Class C Private Addresses
+  //
+  subnets[num].info.type = IP_SUBNET_PRIVATE;
+  subnets[num].info.priv.class = 'c';
+  inet_pton(AF_INET, "192.168.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 16;
+  ++num;
+
+  // RFC 3927 Link Local Addresses
+  //
+  subnets[num].info.type = IP_SUBNET_LINKLOCAL;
+  inet_pton(AF_INET, "169.254.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 16;
+  ++num;
+
+  return num;
+}
+
+int init_special_subnets(lct_subnet_t *subnets, size_t size) {
+  if (size < 12) {
+    fprintf(stderr, "Need a prefix buffer of size 12 for special ranges\n");
+    return -1;
+  }
+
+  // 12 reserved address ranges according to RFC 5735 minus the RFC 1918
+  // private use subnets.
   //
   // Most of these would be considered martians on a typical internet router
   // but private, multicast, broadcast, 6to4 relay anycast, and link local
@@ -229,14 +282,10 @@ int init_reserved_subnets(lct_subnet_t *subnets, size_t size) {
   // prefixes to a list
   //
   // 0.0.0.0/8           "This" Network             RFC 1122, Section 3.2.1.3
-  // 10.0.0.0/8          Private-Use Networks       RFC 1918
   // 127.0.0.0/8         Loopback                   RFC 1122, Section 3.2.1.3
-  // 169.254.0.0/16      Link Local                 RFC 3927
-  // 172.16.0.0/12       Private-Use Networks       RFC 1918
   // 192.0.0.0/24        IETF Protocol Assignments  RFC 5736
   // 192.0.2.0/24        TEST-NET-1                 RFC 5737
   // 192.88.99.0/24      6to4 Relay Anycast         RFC 3068
-  // 192.168.0.0/16      Private-Use Networks       RFC 1918
   // 198.18.0.0/15       Network Interconnect
   //                     Device Benchmark Testing   RFC 2544
   // 198.51.100.0/24     TEST-NET-2                 RFC 5737
@@ -250,122 +299,103 @@ int init_reserved_subnets(lct_subnet_t *subnets, size_t size) {
   // Would either need a switch case statement or a define for each type
 
   // just build the reservations by hand in order
+  int num = 0;
 
   // RFC 1122, Sect. 3.2.1.3 "This" Networks
   //
-  subnets[0].info.type = IP_SUBNET_RESERVED;
-  subnets[0].info.rsv.desc = "RFC 1122, Sect. 3.2.1.3 \"This\" Networks";
-  inet_pton(AF_INET, "0.0.0.0", &(subnets[0].addr));
-  subnets[0].addr = ntohl(subnets[0].addr);
-  subnets[0].len = 8;
-
-  // RFC 1918 Class A Private Addresses
-  //
-  subnets[1].info.type = IP_SUBNET_PRIVATE;
-  subnets[1].info.priv.class = 'a';
-  inet_pton(AF_INET, "10.0.0.0", &(subnets[1].addr));
-  subnets[1].addr = ntohl(subnets[1].addr);
-  subnets[1].len = 8;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 1122, Sect. 3.2.1.3 \"This\" Networks";
+  inet_pton(AF_INET, "0.0.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 8;
+  ++num;
 
   // RFC 1122, Sect. 3.2.1.3 Loopback
   //
-  subnets[2].info.type = IP_SUBNET_LOOPBACK;
-  inet_pton(AF_INET, "127.0.0.0", &(subnets[2].addr));
-  subnets[2].addr = ntohl(subnets[2].addr);
-  subnets[2].len = 8;
-
-  // RFC 3927 Link Local Addresses
-  //
-  subnets[3].info.type = IP_SUBNET_LINKLOCAL;
-  inet_pton(AF_INET, "169.254.0.0", &(subnets[3].addr));
-  subnets[3].addr = ntohl(subnets[3].addr);
-  subnets[3].len = 16;
-
-  // RFC 1918 Class B Private Addresses
-  //
-  subnets[4].info.type = IP_SUBNET_PRIVATE;
-  subnets[4].info.priv.class = 'b';
-  inet_pton(AF_INET, "172.16.0.0", &(subnets[4].addr));
-  subnets[4].addr = ntohl(subnets[4].addr);
-  subnets[4].len = 12;
+  subnets[num].info.type = IP_SUBNET_LOOPBACK;
+  inet_pton(AF_INET, "127.0.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 8;
+  ++num;
 
   // RFC 5736 IETF Protocol Assignments
   //
-  subnets[5].info.type = IP_SUBNET_RESERVED;
-  subnets[5].info.rsv.desc = "RFC 5736 IETF Protocol Assignments";
-  inet_pton(AF_INET, "192.0.0.0", &(subnets[5].addr));
-  subnets[5].addr = ntohl(subnets[5].addr);
-  subnets[5].len = 24;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 5736 IETF Protocol Assignments";
+  inet_pton(AF_INET, "192.0.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 24;
+  ++num;
 
   // RFC 5737 TEST-NET-1
   //
-  subnets[6].info.type = IP_SUBNET_RESERVED;
-  subnets[6].info.rsv.desc = "RFC 5737 TEST-NET-1";
-  inet_pton(AF_INET, "192.0.2.0", &(subnets[6].addr));
-  subnets[6].addr = ntohl(subnets[6].addr);
-  subnets[6].len = 24;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 5737 TEST-NET-1";
+  inet_pton(AF_INET, "192.0.2.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 24;
+  ++num;
 
   // RFC 3068 6to4 Relay Anycast
   //
-  subnets[7].info.type = IP_SUBNET_RESERVED;
-  subnets[7].info.rsv.desc = "RFC 3068 6to4 Relay Anycast";
-  inet_pton(AF_INET, "192.88.99.0", &(subnets[7].addr));
-  subnets[7].addr = ntohl(subnets[7].addr);
-  subnets[7].len = 24;
-
-  // RFC 1918 Class C Private Addresses
-  //
-  subnets[8].info.type = IP_SUBNET_PRIVATE;
-  subnets[8].info.priv.class = 'c';
-  inet_pton(AF_INET, "192.168.0.0", &(subnets[8].addr));
-  subnets[8].addr = ntohl(subnets[8].addr);
-  subnets[8].len = 16;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 3068 6to4 Relay Anycast";
+  inet_pton(AF_INET, "192.88.99.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 24;
+  ++num;
 
   // RFC 2544 Network Interconnect Device Benchmark Testing
   //
-  subnets[9].info.type = IP_SUBNET_RESERVED;
-  subnets[9].info.rsv.desc = "RFC 2544 Network Interconnect Device Benchmark Testing";
-  inet_pton(AF_INET, "198.18.0.0", &(subnets[9].addr));
-  subnets[9].addr = ntohl(subnets[9].addr);
-  subnets[9].len = 15;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 2544 Network Interconnect Device Benchmark Testing";
+  inet_pton(AF_INET, "198.18.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 15;
+  ++num;
 
   // RFC 5737 TEST-NET-2
   //
-  subnets[10].info.type = IP_SUBNET_RESERVED;
-  subnets[10].info.rsv.desc = "RFC 5737 TEST-NET-2";
-  inet_pton(AF_INET, "198.51.100.0", &(subnets[10].addr));
-  subnets[10].addr = ntohl(subnets[10].addr);
-  subnets[10].len = 24;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 5737 TEST-NET-2";
+  inet_pton(AF_INET, "198.51.100.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 24;
+  ++num;
 
   // RFC 5737 TEST-NET-3
   //
-  subnets[11].info.type = IP_SUBNET_RESERVED;
-  subnets[11].info.rsv.desc = "RFC 5737 TEST-NET-3";
-  inet_pton(AF_INET, "203.0.113.0", &(subnets[11].addr));
-  subnets[11].addr = ntohl(subnets[11].addr);
-  subnets[11].len = 24;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 5737 TEST-NET-3";
+  inet_pton(AF_INET, "203.0.113.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 24;
+  ++num;
 
   // RFC 3171 Multicast Addresses
   //
-  subnets[12].info.type = IP_SUBNET_MULTICAST;
-  inet_pton(AF_INET, "224.0.0.0", &(subnets[12].addr));
-  subnets[12].addr = ntohl(subnets[12].addr);
-  subnets[12].len = 4;
+  subnets[num].info.type = IP_SUBNET_MULTICAST;
+  inet_pton(AF_INET, "224.0.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 4;
+  ++num;
 
   // RFC 1112, Section 4 Reserved for Future Use
   //
-  subnets[13].info.type = IP_SUBNET_RESERVED;
-  subnets[13].info.rsv.desc = "RFC 1112, Section 4 Reserved for Future Use";
-  inet_pton(AF_INET, "240.0.0.0", &(subnets[13].addr));
-  subnets[13].addr = ntohl(subnets[13].addr);
-  subnets[13].len = 4;
+  subnets[num].info.type = IP_SUBNET_RESERVED;
+  subnets[num].info.rsv.desc = "RFC 1112, Section 4 Reserved for Future Use";
+  inet_pton(AF_INET, "240.0.0.0", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 4;
+  ++num;
 
   // RFC 919/922, Section 7 Limited Broadcast Address
   //
-  subnets[14].info.type = IP_SUBNET_BROADCAST;
-  inet_pton(AF_INET, "255.255.255.255", &(subnets[14].addr));
-  subnets[14].addr = ntohl(subnets[14].addr);
-  subnets[14].len = 32;
+  subnets[num].info.type = IP_SUBNET_BROADCAST;
+  inet_pton(AF_INET, "255.255.255.255", &(subnets[num].addr));
+  subnets[num].addr = ntohl(subnets[num].addr);
+  subnets[num].len = 32;
+  ++num;
 
-  return 15;
+  return num;
 }

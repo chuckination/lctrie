@@ -97,9 +97,13 @@ typedef struct lct_ip_stats {
   uint32_t used;  // size of the subprefixed address space
 } lct_ip_stats_t;
 
-// fill in user array with reserved IP subnets
-// according to RFC 5735
-extern int init_reserved_subnets(lct_subnet_t *subnets, size_t size);
+// fill in user array with reserved IP subnets according to RFC 1918
+// private use IP networks and RFC 3927 link local networks
+extern int init_private_subnets(lct_subnet_t *subnets, size_t size);
+
+// fill in user array with reserved IP subnets according to RFC 5735
+// minus the private IP subets from RFC 1918
+extern int init_special_subnets(lct_subnet_t *subnets, size_t size);
 
 // three-way subnet comparison for qsort
 extern int subnet_cmp(const void *di, const void *dj);

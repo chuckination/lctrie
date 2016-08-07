@@ -2,7 +2,8 @@
 
 #include <stdio.h>
 
-#define FILLFACT 50
+#define FILLFACT          50
+#define MAX_ROOT_BRANCH   16
 
 static
 uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
@@ -38,11 +39,13 @@ uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
     return 1;
   }
 
-  // always use a branching factor of 4 bits at the root.
-  // multicast and reserved spaces are /4 networks and
-  // we'll need to check for those.
+  // seems that a full byte for branches at the root is the best,
+  // but needs to be less if our shortest prefix is less than that.
   if ((prefix == 0) && (first == 0)) {
-    return 2;
+    // root branch is the shortest of the shortest base prefix length
+    // and 8 which tests the best as long as all bases are greater
+    // than 8
+    return trie->shortest < MAX_ROOT_BRANCH ? trie->shortest : MAX_ROOT_BRANCH;
   }
 
   // Compute the number of bits that can be used for branching.
@@ -144,7 +147,7 @@ void build_inner(lct_t *trie, uint32_t prefix, uint32_t first, uint32_t num, uin
         if ((match1 > match2 && p > first) || p == first + num)
           build_inner(trie, newprefix + branch, p - 1, 1, idx + bitpat);
         else
-          build_inner(trie, newprefix + branch, p, 1, idx + bitpat); 
+          build_inner(trie, newprefix + branch, p, 1, idx + bitpat);
       } else if (k == 1 && trie->nets[trie->bases[p]].len - newprefix < branch) {
         bits = branch - trie->nets[trie->bases[p]].len + newprefix;
         for (i = bitpat; i < bitpat + (1 << bits); i++)
@@ -179,11 +182,14 @@ int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size) {
     return -1;
   }
 
+  trie->shortest = 32;  // max subnet prefix length (single address)
   for (int i = 0; i < size; ++i) {
     if (IP_BASE == subnets[i].type) {
       // save off the base's index in the subnet array
       // and increment the bases counter
       trie->bases[trie->bcount++] = i;
+      if (subnets[i].len < trie->shortest)
+        trie->shortest = subnets[i].len;
     }
   }
 

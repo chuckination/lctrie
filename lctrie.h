@@ -60,8 +60,10 @@ typedef struct lct_node {
 // trie - the root of the trie
 typedef struct lct {
   uint32_t ncount;    // number of trie nodes, will always be <= 2 * pcount
-  uint32_t bcount;      // number of trie base subnet leaves
-  uint32_t *bases;     // array of indexes in the base array to indexes
+  uint32_t bcount;    // number of trie base subnet leaves
+  uint8_t shortest;   // shortest subnet base (used for root branch size)
+
+  uint32_t *bases;    // array of indexes in the base array to indexes
                       // into the subnet info data array.
   lct_subnet_t *nets; // pointer to a sorted and prefixed array of subnets
   lct_node_t *root;   // pointer to the root of the trie node tree
