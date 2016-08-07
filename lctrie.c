@@ -4,7 +4,8 @@
 
 #define FILLFACT 50
 
-static uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
+static
+uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
                          uint32_t num, uint32_t *newprefix) {
   uint32_t low, high;
   uint32_t i;
@@ -25,10 +26,12 @@ static uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
   return (*newprefix - prefix);
 }
 
-// branch factor results in 1 << branch trie subnodes
-static uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
+static
+uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
                            uint32_t num, uint32_t newprefix) {
   int i, pat, bits, count, patfound;
+
+  // branch factor results in 1 << branch trie subnodes
 
   // always use a branch factor of 1 for two element arrays
   if (num == 2) {
@@ -69,7 +72,8 @@ static uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
   return bits - 1;
 }
 
-static void build_inner(lct_t *trie, uint32_t prefix, uint32_t first, uint32_t num, uint32_t pos) {
+static
+void build_inner(lct_t *trie, uint32_t prefix, uint32_t first, uint32_t num, uint32_t pos) {
   int k, p, idx, bits;
   uint32_t bitpat, newprefix = 0, i;
   uint8_t branch;

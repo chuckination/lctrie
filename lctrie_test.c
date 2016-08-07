@@ -16,7 +16,7 @@
 
 #define LCT_VERIFY_PREFIXES         0
 #define LCT_IP_DISPLAY_PREFIXES     0
-#define LCT_TEST_SECS               10
+#define LCT_TEST_SECS               5
 
 void print_subnet(lct_subnet_t *subnet) {
   char pstr[INET_ADDRSTRLEN];
@@ -311,6 +311,7 @@ int main(int argc, char *argv[]) {
     // don't bother seeding this, we're not doing crypto
     prefix = rand();
 
+    // record the lookup, hit, and miss stats
     ++nlookup;
     subnet = lct_find(&t, prefix);
     if (subnet) {
