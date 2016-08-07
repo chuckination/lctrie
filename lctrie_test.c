@@ -3,8 +3,10 @@
 #include <libgen.h>
 #include <string.h>
 #include <errno.h>
+#include <locale.h>
 
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #include "lctrie_ip.h"
 #include "lctrie_bgp.h"
@@ -12,7 +14,9 @@
 
 #define BGP_MAX_ENTRIES 4000000
 
+#define LCT_VERIFY_PREFIXES         0
 #define LCT_IP_DISPLAY_PREFIXES     0
+#define LCT_TEST_SECS               10
 
 void print_subnet(lct_subnet_t *subnet) {
   char pstr[INET_ADDRSTRLEN];
@@ -62,6 +66,9 @@ void print_subnet(lct_subnet_t *subnet) {
       printf("Bogon%s subnet for %s/%d\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len);
       break;
 
+    case IP_SUBNET_USER:
+      printf("Reserved%s subnet for %s/%d, %s\n", subnet->type == IP_PREFIX_FULL ? " FULL" : "", pstr, subnet->len, (char *) subnet->info.usr.data);
+      break;
 
     default:
       printf("Invalid prefix type for %s/%d\n", pstr, subnet->len);
@@ -136,6 +143,9 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  // we need this to get thousands separators
+  setlocale(LC_NUMERIC, "");
+
   if (!(p = (lct_subnet_t *)calloc(sizeof(lct_subnet_t), BGP_MAX_ENTRIES))) {
     fprintf(stderr, "Could not allocate subnet input buffer\n");
     exit(EXIT_FAILURE);
@@ -152,6 +162,29 @@ int main(int argc, char *argv[]) {
     return rc;
   }
   num += rc;
+
+#if LCT_VERIFY_PREFIXES
+  // Add a couple of custom prefixes.  Just use the void *data as a char *desc
+
+  // 192.168.1.0/24 home subnet (common for SOHO wireless routers)
+  p[num].info.type = IP_SUBNET_USER;
+  p[num].info.usr.data = "Class A/24 home network";
+  inet_pton(AF_INET, "192.168.1.0", &(p[num].addr));
+  p[num].addr = ntohl(p[num].addr);
+  p[num].len = 24;
+  ++num;
+
+  // 192.168.1.0/28 home sub-subnet.  used for testing address ranges
+  p[num].info.type = IP_SUBNET_USER;
+  p[num].info.usr.data = "Class A/28 sub home network";
+  inet_pton(AF_INET, "192.168.1.0", &(p[num].addr));
+  p[num].addr = ntohl(p[num].addr);
+  p[num].len = 28;
+  ++num;
+#endif
+
+  // in a real world example, this data pointer would point to a more fleshed
+  // out structure that would represent the host group
 
   // validate subnet prefixes against their netmasks
   // and sort the resulting array
@@ -196,15 +229,15 @@ int main(int argc, char *argv[]) {
   uint32_t subnet_bytes = num * sizeof(lct_subnet_t);
   uint32_t stats_bytes = num * sizeof(lct_ip_stats_t);
   printf("\nStats:\n");
-  printf("Read %d unique subnets using %u %s memory for subnet descriptors and %u %s for ephemeral IP stats.\n",
+  printf("Read %'d unique subnets using %u %s memory for subnet descriptors and %u %s for ephemeral IP stats.\n",
          num,
          subnet_bytes / ((subnet_bytes > 1024) ? (subnet_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (subnet_bytes > 1024) ? (subnet_bytes > 1024 * 1024) ? "mB" : "kB" : "B",
          stats_bytes / ((stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (stats_bytes > 1024) ? (stats_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
-  printf("%d subnets are fully allocated to subprefixes culling %1.2f%% subnets from the match count.\n",
+  printf("%'d subnets are fully allocated to subprefixes culling %1.2f%% subnets from the match count.\n",
          nfull, (100.0f * nfull) / num);
-  printf("%d optimized prefixes of %d base subnets will make a trie with %1.2f%% base leaf nodes.\n",
+  printf("%'d optimized prefixes of %d base subnets will make a trie with %1.2f%% base leaf nodes.\n",
          nprefixes - nfull, nbases, (100.0f * nbases) / (num - nfull));
   printf("The trie will consist of %1.2f%% base subnets and %1.2f%% total subnets from the full subnet list.\n",
          (100.0f * nbases) / (num), (100.0f * (num - nfull)) / num);
@@ -213,7 +246,7 @@ int main(int argc, char *argv[]) {
   memset(&t, 0, sizeof(lct_t));
   lct_build(&t, p, num);
   uint32_t node_bytes = t.ncount * sizeof(lct_node_t) + t.bcount * sizeof(uint32_t);
-  printf("The resulting trie has %u nodes using %u %s memory.\n", t.ncount,
+  printf("The resulting trie has %'u nodes using %u %s memory.\n", t.ncount,
          node_bytes / ((node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? 1024 * 1024 : 1024 : 1),
          (node_bytes > 1024) ? (node_bytes > 1024 * 1024) ? "mB" : "kB" : "B");
  
@@ -231,6 +264,27 @@ int main(int argc, char *argv[]) {
     "224.123.45.67",
     "240.123.45.67",
     "255.255.255.255",
+#if LCT_VERIFY_PREFIXES
+    "192.168.0.0",
+    "192.168.0.255",
+    "192.168.1.0",
+    "192.168.1.1",
+    "192.168.1.2",
+    "192.168.1.3",
+    "192.168.1.4",
+    "192.168.1.7",
+    "192.168.1.8",
+    "192.168.1.15",
+    "192.168.1.16",
+    "192.168.1.31",
+    "192.168.1.32",
+    "192.168.1.63",
+    "192.168.1.64",
+    "192.168.1.127",
+    "192.168.1.128",
+    "192.168.1.255",
+    "192.168.2.255",
+#endif
     NULL
   };
   printf("Testing trie matches for some well known subnets...\n");
@@ -245,6 +299,35 @@ int main(int argc, char *argv[]) {
     subnet = lct_find(&t, ntohl(prefix));
     print_subnet(subnet);
   }
+
+  printf("\n\nPerformance testing for %d secs...\n", LCT_TEST_SECS);
+
+  unsigned int nlookup = 0, nhit = 0, nmiss = 0;
+
+  // start the stop clock
+  struct timeval start, now;
+  gettimeofday(&start, NULL);
+  do {
+    // don't bother seeding this, we're not doing crypto
+    prefix = rand();
+
+    ++nlookup;
+    subnet = lct_find(&t, prefix);
+    if (subnet) {
+      ++nhit;
+    }
+    else {
+      ++nmiss;
+    }
+
+    // get the current time
+    gettimeofday(&now, NULL);
+  } while (1000 * (now.tv_sec - start.tv_sec) + (now.tv_usec - start.tv_usec) / 1000 < LCT_TEST_SECS * 1000);
+  // timer has millisecond accuracy
+
+  printf("Complete.\n");
+  printf("%'u lookups with %'u hits and %'u misses.\n", nlookup, nhit, nmiss);
+  printf("%'1.1f lookups/sec.\n", (1.0f * nlookup) / LCT_TEST_SECS);
 
 #if 0
   printf("\nHit enter key to continue...\n");

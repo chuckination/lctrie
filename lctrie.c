@@ -71,7 +71,7 @@ static uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
 
 static void build_inner(lct_t *trie, uint32_t prefix, uint32_t first, uint32_t num, uint32_t pos) {
   int k, p, idx, bits;
-  uint32_t bitpat, newprefix, i;
+  uint32_t bitpat, newprefix = 0, i;
   uint8_t branch;
 
   if (num == 1) {
