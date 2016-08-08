@@ -2,8 +2,14 @@
 
 #include <stdio.h>
 
+// a large root branch performs best under testing
+// and splits up the search space size of the sub-branchs
+// signficantly even when there's repeated bases off the 
+// root due to shorter prefix matches.
+#define ROOT_BRANCH       16
+
+// A branch fill factor of 50%
 #define FILLFACT          50
-#define MAX_ROOT_BRANCH   16
 
 static
 uint8_t compute_skip(lct_t *trie, uint32_t prefix, uint32_t first,
@@ -39,13 +45,10 @@ uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
     return 1;
   }
 
-  // seems that a full byte for branches at the root is the best,
-  // but needs to be less if our shortest prefix is less than that.
+  // a large root factor may waste entries for the same base off of the root,
+  // but performan exceptionally better for longer prefix matches.
   if ((prefix == 0) && (first == 0)) {
-    // root branch is the shortest of the shortest base prefix length
-    // and 8 which tests the best as long as all bases are greater
-    // than 8
-    return trie->shortest < MAX_ROOT_BRANCH ? trie->shortest : MAX_ROOT_BRANCH;
+    return ROOT_BRANCH;
   }
 
   // Compute the number of bits that can be used for branching.

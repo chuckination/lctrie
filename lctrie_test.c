@@ -18,7 +18,7 @@
 
 // should we initialize the special prefix ranges?
 #define LCT_INIT_PRIVATE            1
-#define LCT_INIT_SPECIAL            0
+#define LCT_INIT_SPECIAL            1
 
 #define LCT_VERIFY_PREFIXES         1
 #define LCT_IP_DISPLAY_PREFIXES     0
@@ -163,12 +163,12 @@ int main(int argc, char *argv[]) {
 #if LCT_INIT_PRIVATE
   // start with the RFC 1918 and 3927 private and link local
   // subnets as a basis for any table set
-  num += init_private_subnets(p, BGP_MAX_ENTRIES);
+  num += init_private_subnets(&p[num], BGP_MAX_ENTRIES);
 #endif
 
 #if LCT_INIT_SPECIAL
   // fill up the rest of the array with reserved IP subnets
-  num += init_special_subnets(p, BGP_MAX_ENTRIES);
+  num += init_special_subnets(&p[num], BGP_MAX_ENTRIES);
 #endif
 
 #if BGP_READ_FILE
