@@ -236,7 +236,9 @@ int main(int argc, char *argv[]) {
 
   // we're storing twice as many subnets as necessary for easy
   // iteration over the entire sorted subnet list.
+#if LCT_IP_DISPLAY_PREFIXES
   printf("Enumerating database, get ready! 3..2..1..GO!!!\n\n");
+#endif
   for (int i = 0; i < num; i++) {
 #if LCT_IP_DISPLAY_PREFIXES
     print_subnet_stats(&p[i], &stats[i]);
