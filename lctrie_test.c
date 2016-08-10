@@ -147,8 +147,8 @@ int main(int argc, char *argv[]) {
   lct_subnet_t *p, *subnet = NULL;
   lct_t t;
 
-  if (argc != 3) {
-    fprintf(stderr, "usage: %s <BGP ASN Subnets> <BGP ASN Assignments>\n", basename(argv[0]));
+  if (argc != 2) {
+    fprintf(stderr, "usage: %s <BGP Prefixes File>\n", basename(argv[0]));
     exit(EXIT_FAILURE);
   }
 
