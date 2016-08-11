@@ -14,7 +14,7 @@ to be wired into a performance critical asynchronous system.
 --
 
 Build requirements:
-make, GCC, glibc
+make, GCC, glibc, pcre
 
 To build:
 On any relatively modern unix system, simply typing make should
