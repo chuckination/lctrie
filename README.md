@@ -51,30 +51,30 @@ Software is licensed under [a dual GPL/Commercial license](https://github.com/ch
 
 * BGP Routing Table Analysis - Washington, Asia Pacific Network Information Centre, 2016
 
-http://thyme.apnic.net/us/
+--http://thyme.apnic.net/us/
 
 * Stefan Nilsson and Gunnar Karlsson, IP-Address Lookup Using LC-Tries, KTH Royal Institute of Technology, 1998
 
-https://www.nada.kth.se/~snilsson/publications/IP-address-lookup-using-LC-tries/text.pdf
+--https://www.nada.kth.se/~snilsson/publications/IP-address-lookup-using-LC-tries/text.pdf
 
 * Stefan Nilsson and Gunnar Karlsson, Fast IP Routing with LC-Tries, Dr. Dobb's, 1998
 
-http://www.drdobbs.com/cpp/fast-ip-routing-with-lc-tries/184410638
+--http://www.drdobbs.com/cpp/fast-ip-routing-with-lc-tries/184410638
 
 * Weidong Wu, Packet Forwarding Technologies, CRC Press, 2007
 
 * RFC 1519, Classless Inter-Domain Routing (CIDR), IETF, 1993
 
-https://tools.ietf.org/html/rfc1519
+--https://tools.ietf.org/html/rfc1519
 
 * RFC 4632, Classless Inter-Domain Routing (CIDR), IETF, 2006
 
-https://tools.ietf.org/html/rfc4632
+--https://tools.ietf.org/html/rfc4632
 
 * RFC 5735, Special Use IPv4 Addresses, IETF, 2010
 
-https://tools.ietf.org/html/rfc5735
+--https://tools.ietf.org/html/rfc5735
 
 * RFC 1918, Address Allocation for Private Internets, IETF, 1996
 
-https://tools.ietf.org/html/rfc1918
+--https://tools.ietf.org/html/rfc1918
