@@ -43,7 +43,7 @@ end of each runtime step.
 
 This project is copyright 2016 Charles Stewart <chuckination@gmail.com>.
 
-Software is licensed under [a dual GPL/Commercial license](https://github.com/chuckination/lctrie/blob/master/LICENSE).
+Software is licensed under [2-Clause BSD Licnese](https://github.com/chuckination/lctrie/blob/master/LICENSE).
 
 --
 
