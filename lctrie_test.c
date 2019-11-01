@@ -22,7 +22,13 @@
 
 #define LCT_VERIFY_PREFIXES         1
 #define LCT_IP_DISPLAY_PREFIXES     0
-#define LCT_TEST_SECS               5
+
+static unsigned long next = 1;
+
+int fastrand(void) {
+  next = next * 1103515245 + 12345;
+  return((unsigned)(next/65536) % RAND_MAX);
+}
 
 void print_subnet(lct_subnet_t *subnet) {
   char pstr[INET_ADDRSTRLEN];
@@ -333,7 +339,7 @@ int main(int argc, char *argv[]) {
   }
   printf("Finished printed trie subnet matches.\n\n");
 
-  printf("Performance testing for %d secs...\n", LCT_TEST_SECS);
+  printf("Performance testing, might take a while...\n");
 
   // init zero stats and seed the RNG
   unsigned int nlookup = 0, nhit = 0, nmiss = 0;
@@ -346,10 +352,10 @@ int main(int argc, char *argv[]) {
   // start the stop clock
   struct timeval start, now;
   gettimeofday(&start, NULL);
-  do {
+  for (int i = 0; i < 50000000; i++) {
 
     // just grab a random number and check to match
-    prefix = rand();
+    prefix = fastrand();
 
     // record the lookup, hit, and miss stats
     ++nlookup;
@@ -362,13 +368,15 @@ int main(int argc, char *argv[]) {
     }
 
     // get the current time
-    gettimeofday(&now, NULL);
-  } while (1000 * (now.tv_sec - start.tv_sec) + (now.tv_usec - start.tv_usec) / 1000 < LCT_TEST_SECS * 1000);
+  } 
+  gettimeofday(&now, NULL);
+  unsigned long took_ms = 1000 * (now.tv_sec - start.tv_sec) + (now.tv_usec - start.tv_usec) / 1000;
   // timer has millisecond accuracy
 
   printf("Complete.\n");
-  printf("%'u lookups with %'u hits and %'u misses.\n", nlookup, nhit, nmiss);
-  printf("%'u lookups/sec.\n\n", nlookup / LCT_TEST_SECS);
+printf("%'u lookups with %'u hits and %'u misses in %ldms.\n", nlookup, nhit, nmiss,
+       took_ms);
+  printf("%'lu lookups/sec.\n\n", nlookup / took_ms * 1000);
 
   printf("Pausing to allow for system analysis.\n");
   printf("Hit enter key to continue...\n");
