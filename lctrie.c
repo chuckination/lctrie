@@ -3,8 +3,8 @@
 #include <stdio.h>
 
 // a large root branch performs best under testing
-// and splits up the search space size of the sub-branchs
-// signficantly even when there's repeated bases off the 
+// and splits up the search space size of the sub-branches
+// significantly even when there's repeated bases off the
 // root due to shorter prefix matches.
 #define ROOT_BRANCH       16
 
@@ -46,7 +46,7 @@ uint8_t compute_branch(lct_t *trie, uint32_t prefix, uint32_t first,
   }
 
   // a large root factor may waste entries for the same base off of the root,
-  // but performan exceptionally better for longer prefix matches.
+  // but performs exceptionally better for longer prefix matches.
   if ((prefix == 0) && (first == 0)) {
     return ROOT_BRANCH;
   }
@@ -207,7 +207,7 @@ int lct_build(lct_t *trie, lct_subnet_t *subnets, uint32_t size) {
     return -1;
   }
 
-  // hande off to the inner recursive function
+  // hand off to the inner recursive function
   trie->ncount = 1; // we start with the root node allocated
   build_inner(trie, 0, 0, trie->bcount, 0);
 
@@ -223,6 +223,7 @@ void lct_free(lct_t *trie) {
 
   // don't free the external subnet array.
   // that's under outside control.
+  free(trie->root);
   free(trie->bases);
   trie->bases = NULL;
   trie->root = NULL;
