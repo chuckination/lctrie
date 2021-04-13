@@ -66,7 +66,7 @@ size_t subnet_dedup(lct_subnet_t *subnets, size_t size) {
   uint32_t prefix;
   size_t ndup = 0;
 
-  for (int i = 0, j = 1; j < size; ++i, ++j) {
+  for (int i = 0, j = 1; j < size; ++j) {
     // we have a duplicate!
     if (!subnet_cmp(&subnets[i], &subnets[j])) {
       prefix = htonl(subnets[i].addr);
@@ -79,13 +79,9 @@ size_t subnet_dedup(lct_subnet_t *subnets, size_t size) {
       // assume that the prior defined subnet is the desired one,
       // dis-allowing redefinition of that subnet elsewhere,
       // ex. bogon file, BGP ASN list, user specified subnets
-      //
-      // slide the rest of the array over the second value.  if we're at the
-      // end of the array, just let it drop off.
-      if ((j + 1) < size)
-        memmove(&subnets[j], &subnets[j + 1], (size - (j + 1)) * sizeof(lct_subnet_t));
-      --size;
       ++ndup;
+    } else {
+      subnets[++i] = subnets[j];
     }
   }
 
@@ -106,7 +102,7 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
 #endif
 
   // if the array in p is shrunk in any way, it invalidates
-  // the prefix indexes in the table and forces us to recaculate
+  // the prefix indexes in the table and forces us to recalculate
   // over again.
   //
   // we could remove this restriction if we stored a node's prefix
@@ -132,7 +128,7 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
 
   // go through and determine which subnets are prefixes of other subnets
   for (int i = 0; i < size; ++i) {
-    int j = i + 1;  // fake out a psuedo second iterator
+    int j = i + 1;  // fake out a pseudo second iterator
     if ((j < size) && subnet_isprefix(&p[i], &p[j])) {
 #if LCT_IP_DEBUG_PREFIXES
       prefix = htonl(p[i].addr);
@@ -198,7 +194,7 @@ size_t subnet_prefix(lct_subnet_t *p, lct_ip_stats_t *stats, size_t size) {
   // and update the prefix pointer to the next non-full prefix or
   // IP_PREFIX_NIL.
   //
-  // We can't do this in a consective pass since the subnet nodes don't
+  // We can't do this in a consecutive pass since the subnet nodes don't
   // have indexes back to their base subnets.
   for (int i = 0; i < size; ++i ) {
     // if the prefix is fully used, mark it full
